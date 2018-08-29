@@ -1,0 +1,9 @@
+Package: com.giorgioiavicoli.timepass
+Name: TimePass
+Depends: mobilesubstrate
+Version: 0.0.1
+Architecture: iphoneos-arm
+Description: Use current time to derive a passcode
+Maintainer: Giorgio Iavicoli
+Author: Giorgio Iavicoli
+Section: Tweaks

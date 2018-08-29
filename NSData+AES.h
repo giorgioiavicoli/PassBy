@@ -14,7 +14,7 @@
 NSData *    generateSalt
             (size_t length);
 
-uint32_t    calibrateRounds
+NSUInteger  calibrateRounds
             (size_t keyLength,
              size_t saltLength,
              uint32_t calibratedDuration);

@@ -17,8 +17,6 @@ NSData * aes(NSData * data,
              CCOptions options);
 
 
-@implementation NSData (AES)
-
 NSData * AES128Encrypt(NSData * data, NSData * key)
 {
     return aes(data, key,
@@ -33,8 +31,6 @@ NSData * AES128Decrypt(NSData * data, NSData * key)
                kCCOptionPKCS7Padding);
 }
 
-@end
-
 NSData * generateSalt(size_t length)
 {
     NSMutableData * randomData = [NSMutableData dataWithLength:length];
@@ -44,7 +40,7 @@ NSData * generateSalt(size_t length)
                              ) == errSecSuccess ? randomData : nil;
 }
 
-uint32_t calibrateRounds(size_t keyLength,
+NSUInteger calibrateRounds(size_t keyLength,
                          size_t saltLength,
                          uint32_t calibratedDuration)
 {
