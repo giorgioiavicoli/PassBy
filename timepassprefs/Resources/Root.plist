@@ -68,7 +68,7 @@
 			<key>placeholder</key>
 			<string>Timeout to disable auto-unlock</string>
 			<key>isNumeric</key>
-			</true>
+			<true/>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -116,7 +116,7 @@
 			<key>placeholder</key>
 			<string>Timeout on WiFi</string>
 			<key>isNumeric</key>
-			</true>
+			<true/>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -180,7 +180,7 @@
 			<key>placeholder</key>
 			<string>Minutes to add/subtract</string>
 			<key>isNumeric</key>
-			</true>
+			<true/>
 		</dict>		
 		<dict>
 			<key>cell</key>
@@ -260,7 +260,7 @@
 			<key>placeholder</key>
 			<string>00</string>
 			<key>isNumeric</key>
-			</true>
+			<true/>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -322,7 +322,7 @@
 			<key>placeholder</key>
 			<string>00</string>
 			<key>isNumeric</key>
-			</true>
+			<true/>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -384,7 +384,7 @@
 			<key>placeholder</key>
 			<string>00</string>
 			<key>isNumeric</key>
-			</true>
+			<true/>
 		</dict>
 		<dict>
 			<key>cell</key>
