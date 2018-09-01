@@ -3,15 +3,26 @@
 #import <notify.h>
 
 static BOOL isTweakEnabled;
-static BOOL isReversed;
-static BOOL shouldAlwaysShowTime;
 static BOOL use24hFormat;
+static int  timeShift;
+
 static BOOL isSixDigitPasscode;
 
-static int      timeShift;
+typedef enum : int {
+        CUSTOM = 0,
+        TIME_H, TIME_M,
+        DATE_D, DATE_M,
+        BATT_R, BATT_U,
+        GRACE_PERIOD
+} DigitsConfig;
+
+struct Digits {
+    NSString * custom;
+    DigitsConfig configuration;
+    BOOL reversed;
+} first, second, last;
 
 static NSString *   truePasscode    = nil;
-static NSString *   lastTwoDigits   = nil;
 static NSDate   *   lastTrueUnlock  = nil;
 static NSDate   *   gracePeriodEnds = nil;
 
@@ -74,13 +85,22 @@ static void updateGracePeriod()
         } else {
             %orig;
             if (![self isUILocked])
-                dispatch_async(dispatch_get_main_queue(), ^{updateLastTrueUnlock(); });
+                dispatch_async(dispatch_get_main_queue(), 
+                    ^{ 
+                        updateLastTrueUnlock(); 
+                        if (![passcode isEqualToString:truePasscode]) {
+                            [truePasscode release];
+                            truePasscode = [passcode copy];
+                        }
+                    }
+                );
         }
     } else {
         %orig;
         if (![self isUILocked]) {
             dispatch_async(dispatch_get_main_queue(), 
                 ^{
+                    updateLastTrueUnlock();
                     UIAlertView *alert =    [   [UIAlertView alloc]
                                                 initWithTitle:@"TimePass"
                                                 message:@"TimePass enabled!"
@@ -89,8 +109,8 @@ static void updateGracePeriod()
                     [alert show];
                     [alert release];
 
+                    [truePasscode release];
                     truePasscode = [passcode copy];
-                    updateLastTrueUnlock();
                 }
             );
         }
@@ -125,22 +145,6 @@ static void updateGracePeriod()
 
 
 
-@interface SBLockScreenViewControllerBase
-- (BOOL)shouldShowLockStatusBarTime;
-@end
-
-%hook SBLockScreenViewControllerBase
-- (BOOL)shouldShowLockStatusBarTime 
-{
-    return YES; //shouldAlwaysShowTime || %orig;
-}
-%end
-
-
-
-
-
-
 NSString * magicPasscode() 
 {
     NSMutableString * pass = [  stringFromDateAndFormat(   
@@ -150,11 +154,9 @@ NSString * magicPasscode()
                                     use24hFormat ? @"HHmm" : @"hhmm"
                                 ) mutableCopy
                             ];
-    if (isReversed)
-        pass = reverseStr(pass);
 
     if (isSixDigitPasscode)
-        [pass appendString: (lastTwoDigits && lastTwoDigits.length == 2) ? lastTwoDigits : @"00"];
+        [pass appendString: @"00"];
 
     NSLog(@"*g* Pass would be: %@", pass);
     return pass;
@@ -185,12 +187,43 @@ NSMutableString * reverseStr(NSString *string)
 }
 
 
-
-@interface SBLockStateAggregator : NSObject
-+(id)sharedInstance;
--(unsigned long long)lockState;
-@end
-
+DigitsConfig parseDigitsConfiguration(NSString *str)
+{
+    if(!str || [str length] != 2)
+        return CUSTOM;
+    
+    char c0 = [str characterAtIndex:0];
+    char c1 = [str characterAtIndex:1];
+    switch(c0) {
+        case 't':
+            if(c1 == 'h')
+                return TIME_H;
+            if(c1 == 'm')
+                return TIME_M;
+            break;
+        case 'd':
+            if(c1 == 'd')
+                return DATE_D;
+            if(c1 == 'm')
+                return DATE_M;
+            break;
+        case 'b':
+            if(c1 == 'r')
+                return BATT_R;
+            if(c1 == 'u')
+                return BATT_U;
+            break;
+        case 'c':
+            if(c1 == 'd')
+                return CUSTOM;
+            break;
+        case 'g':
+            if(c1 == 'p')
+                return GRACE_PERIOD;
+            break;
+    }
+    return CUSTOM;
+}
 
 static void timePassSettingsChanged(CFNotificationCenterRef center, void * observer, 
                                     CFStringRef name, void const * object, CFDictionaryRef userInfo) 
@@ -200,13 +233,23 @@ static void timePassSettingsChanged(CFNotificationCenterRef center, void * obser
                                 ]?: [NSDictionary dictionary];
 
     isTweakEnabled              =       [[timePassDict valueForKey:@"isEnabled"]            ?:@NO boolValue];
-    isReversed                  =       [[timePassDict valueForKey:@"isReversed"]           ?:@NO boolValue];
-    shouldAlwaysShowTime        =       [[timePassDict valueForKey:@"shouldAlwaysShowTime"] ?:@YES boolValue];
     use24hFormat                =       [[timePassDict valueForKey:@"use24hFormat"]         ?:@YES boolValue];
     isSixDigitPasscode          =       [[timePassDict valueForKey:@"isSixDigitPasscode"]   ?:@YES boolValue];
 
     timeShift                   = (int) [[timePassDict valueForKey:@"timeShift"]            ?:@(0) intValue];
-    lastTwoDigits               =       [[timePassDict valueForKey:@"lastTwoDigits"]        ?:@"00" copy];
+
+
+    first.custom                =       [[timePassDict valueForKey:@"firstTwoCustomDigits"] ?:@"00" copy];
+    first.configuration         =       parseDigitsConfiguration([timePassDict valueForKey:@"firstTwo"] ?:@"cd");
+    first.reversed              =       [[timePassDict valueForKey:@"firstTwoReversed"]     ?:@NO boolValue];
+
+    second.custom               =       [[timePassDict valueForKey:@"secondTwoCustomDigits"] ?:@"00" copy];
+    second.configuration        =       parseDigitsConfiguration([timePassDict valueForKey:@"secondTwo"] ?:@"cd");
+    second.reversed             =       [[timePassDict valueForKey:@"secondTwoReversed"]     ?:@NO boolValue];
+
+    last.custom                 =       [[timePassDict valueForKey:@"lastTwoCustomDigits"] ?:@"00" copy];
+    last.configuration          =       parseDigitsConfiguration([timePassDict valueForKey:@"lastTwo"] ?:@"cd");
+    last.reversed               =       [[timePassDict valueForKey:@"lastTwoReversed"]     ?:@NO boolValue];
 
     [timePassDict release];    
 }
@@ -218,6 +261,12 @@ static void timePassCodeChanged(CFNotificationCenterRef center, void * observer,
     truePasscode = nil;
 }
 
+
+@interface SBLockStateAggregator : NSObject
++(id)sharedInstance;
+-(unsigned long long)lockState;
+@end
+
 uint64_t getState(char const * const name)
 {
     int token;
@@ -228,7 +277,7 @@ uint64_t getState(char const * const name)
     return state;
 }
 
-static void displayStatusChanged(CFNotificationCenterRef center, void * observer, 
+static void displayStatusChanged(   CFNotificationCenterRef center, void * observer, 
                                     CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
     bool displayState = getState("com.apple.iokit.hid.displayStatus");
@@ -237,8 +286,8 @@ static void displayStatusChanged(CFNotificationCenterRef center, void * observer
     dispatch_async(dispatch_get_main_queue(), 
         ^{
             if (displayState && truePasscode && [truePasscode length]
-                    && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending
-                    && [[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
+            && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending
+            && [[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
             {
                 [   [%c(SBLockScreenManager) sharedInstance] 
                     _attemptUnlockWithPasscode:truePasscode 
@@ -250,7 +299,7 @@ static void displayStatusChanged(CFNotificationCenterRef center, void * observer
     );
 }
 
-static void lockstateChanged(CFNotificationCenterRef center, void * observer, 
+static void lockstateChanged(   CFNotificationCenterRef center, void * observer, 
                                 CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
     unsigned long long state = [[%c(SBLockStateAggregator) sharedInstance] lockState];
@@ -260,7 +309,7 @@ static void lockstateChanged(CFNotificationCenterRef center, void * observer,
                 ? "LOCKED" : "UNLOCKED");
 
     if((state & LOCKSTATE_NEEDSAUTH_MASK) 
-        && !(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK))
+    && !(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK))
         updateGracePeriod();
 
     lastLockstate = state;

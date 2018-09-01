@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>title</key>
+	<string>TimePass</string>
 	<key>items</key>
 	<array>
 		<dict>
@@ -36,15 +38,133 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Auto-unlock options</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>useGracePeriod</string>
+			<key>label</key>
+			<string>Use auto-unlock</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>gracePeriod</string>
+			<key>label</key>
+			<string>Auto-unlock timeout</string>
+			<key>placeholder</key>
+			<string>Timeout to disable auto-unlock</string>
+			<key>isNumeric</key>
+			</true>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>gracePeriodUnit</string>
+			<key>label</key>
+			<string>Timeout unit</string>
+			<key>validTitles</key>
+			<array>
+				<string>Seconds</string>
+				<string>Minutes</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>s</string>
+				<string>m</string>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>useGracePeriodOnWiFi</string>
+			<key>label</key>
+			<string>Use WiFi auto-unlock</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>gracePeriodOnWiFi</string>
+			<key>label</key>
+			<string>Auto-unlock timeout on WiFi</string>
+			<key>placeholder</key>
+			<string>Timeout on WiFi</string>
+			<key>isNumeric</key>
+			</true>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>gracePeriodUnitOnWifi</string>
+			<key>label</key>
+			<string>Timeout unit</string>
+			<key>validTitles</key>
+			<array>
+				<string>Seconds</string>
+				<string>Minutes</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>s</string>
+				<string>m</string>
+			</array>
+		</dict>
+		<!--
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>label</key>
+			<string>Enabled WiFi networks list</string>
+			<key>customControllerClass</key>
+			<string>TPWiFiListController</string>
+		</dict>
+		!-->
+		<dict>
+			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.timepass</string>
 			<key>key</key>
-			<string>shouldAlwaysShowTime</string>
+			<string>dismissLS</string>
 			<key>label</key>
-			<string>Always show time</string>
+			<string>Dismiss LS if no notifications</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Custom passcode options</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -59,24 +179,26 @@
 			<string>Time Shift</string>
 			<key>placeholder</key>
 			<string>Minutes to add/subtract</string>
-		</dict>
+			<key>isNumeric</key>
+			</true>
+		</dict>		
 		<dict>
 			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
+			<string>PSSegmentCell</string>
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.timepass</string>
 			<key>key</key>
-			<string>isReversed</string>
-			<key>label</key>
-			<string>Reverse result passcode</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>6-digit passcode options</string>
+			<string>timeShiftDirection</string>
+			<key>validTitles</key>
+			<array>
+				<string>Add</string>
+				<string>Subtract</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>+</string>
+				<string>-</string>
+			</array>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -92,17 +214,189 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>firstTwo</string>
+			<key>label</key>
+			<string>First two digits</string>
+			<key>validTitles</key>
+			<array>
+				<string>Time: hours digits</string>
+				<string>Time: minutes digits</string>
+				<string>Date: day</string>
+				<string>Date: month</string>
+				<string>Battery: remaining</string>
+				<string>Battery: used</string>
+				<string>Extra: grace period</string>
+				<string>Custom digits</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>th</string>
+				<string>tm</string>
+				<string>dd</string>
+				<string>dm</string>
+				<string>br</string>
+				<string>bu</string>
+				<string>gp</string>
+				<string>cd</string>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSEditTextCell</string>
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.timepass</string>
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
-			<string>lastTwoDigits</string>
+			<string>firstCustomDigits</string>
 			<key>label</key>
-			<string>Two last digits</string>
+			<string>Custom Digits</string>
 			<key>placeholder</key>
 			<string>00</string>
+			<key>isNumeric</key>
+			</true>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>firstTwoReversed</string>
+			<key>label</key>
+			<string>Reverse first two digits</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>secondTwo</string>
+			<key>label</key>
+			<string>Second two digits</string>
+			<key>validTitles</key>
+			<array>
+				<string>Time: hours digits</string>
+				<string>Time: minutes digits</string>
+				<string>Date: day</string>
+				<string>Date: month</string>
+				<string>Battery: remaining</string>
+				<string>Battery: used</string>
+				<string>Extra: grace period</string>
+				<string>Custom digits</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>th</string>
+				<string>tm</string>
+				<string>dd</string>
+				<string>dm</string>
+				<string>br</string>
+				<string>bu</string>
+				<string>gp</string>
+				<string>cd</string>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>secondCustomDigits</string>
+			<key>label</key>
+			<string>Custom Digits</string>
+			<key>placeholder</key>
+			<string>00</string>
+			<key>isNumeric</key>
+			</true>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>secondTwoReversed</string>
+			<key>label</key>
+			<string>Reverse second two digits</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>lastTwo</string>
+			<key>label</key>
+			<string>Last two digits</string>
+			<key>validTitles</key>
+			<array>
+				<string>Time: hours digits</string>
+				<string>Time: minutes digits</string>
+				<string>Date: day</string>
+				<string>Date: month</string>
+				<string>Battery: remaining</string>
+				<string>Battery: used</string>
+				<string>Extra: grace period</string>
+				<string>Custom digits</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>th</string>
+				<string>tm</string>
+				<string>dd</string>
+				<string>dm</string>
+				<string>br</string>
+				<string>bu</string>
+				<string>gp</string>
+				<string>cd</string>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>lastTwoCustomDigits</string>
+			<key>label</key>
+			<string>Custom Digits</string>
+			<key>placeholder</key>
+			<string>00</string>
+			<key>isNumeric</key>
+			</true>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>lastTwoReversed</string>
+			<key>label</key>
+			<string>Reverse last two digits</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -143,7 +437,5 @@
 			<string>sourceCode:</string>
 		</dict>
 	</array>
-	<key>title</key>
-	<string>TimePass</string>
 </dict>
 </plist>

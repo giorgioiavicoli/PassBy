@@ -4,7 +4,7 @@ BUNDLE_NAME = TimePassPrefs
 TimePassPrefs_FILES = TTURootListController.m
 TimePassPrefs_INSTALL_PATH = /Library/PreferenceBundles
 TimePassPrefs_FRAMEWORKS = UIKit
-TimePassPrefs_PRIVATE_FRAMEWORKS = Preferences
+TimePassPrefs_PRIVATE_FRAMEWORKS = Preferences MobileWiFi
 
 LDFLAGS = -F /Users/giorgioiavicoli/theos/sdks/iPhoneOS11.2.sdk/System/Library/PrivateFrameworks
 
