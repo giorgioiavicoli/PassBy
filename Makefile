@@ -1,8 +1,11 @@
+THEOS_DEVICE_IP = iPhone.local
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = TimePass
-TimePass_FILES = NSData+AES.m Tweak.xm
+TimePass_FILES = Tweak.xm
 TimePass_PRIVATE_FRAMEWORKS = SpringBoardFoundation
+
+#ADDITIONAL_CFLAGS = -objc-arc
 
 LDFLAGS = -F /Users/giorgioiavicoli/theos/sdks/iPhoneOS11.2.sdk/System/Library/PrivateFrameworks
 

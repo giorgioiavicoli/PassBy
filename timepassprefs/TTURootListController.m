@@ -1,9 +1,8 @@
 #import <notify.h>
-
 #include "TPRootListController.h"
 
 
-#define PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.timepass.plist"
+#define PLIST_PATH  "/var/mobile/Library/Preferences/com.giorgioiavicoli.timepass.plist"
 
 @implementation TPRootListController
 
@@ -15,16 +14,17 @@
 }
 
 - (id)readPreferenceValue:(PSSpecifier*)specifier {
-      @autoreleasepool {
-      	return ([[NSDictionary alloc] initWithContentsOfFile:@PLIST_PATH][[specifier properties][@"key"]]) ?: [specifier properties][@"default"];
-      }
+    NSLog(@"*g* Reading %@", [specifier properties][@"key"]);
+    return ([[[NSDictionary alloc] autorelease] initWithContentsOfFile:@PLIST_PATH][[specifier properties][@"key"]]) ?: [specifier properties][@"default"];
 }
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier {
+    NSLog(@"*g* Setting %@", [specifier properties][@"key"]);
     if ([[specifier properties][@"key"] isEqualToString:@"timeShift"]) {
         NSScanner * scanner = [NSScanner scannerWithString:value];
         int i;
         BOOL isNum = [scanner scanInt:&i] && [scanner isAtEnd];
+        [scanner release];
 
         if (!isNum && [value length]) {
             UIAlertView *alert = [  [UIAlertView alloc]
@@ -44,6 +44,7 @@
         NSScanner * scanner = [NSScanner scannerWithString:value];
         int i;
         BOOL isNum = [scanner scanInt:&i] && [scanner isAtEnd];
+        [scanner release];
         
         if ((!isNum || i < 0) && [value length]) {
             UIAlertView *alert = [  [UIAlertView alloc]
@@ -70,10 +71,12 @@
         }
     }
 
-    NSMutableDictionary * settings = [[[NSDictionary alloc] initWithContentsOfFile:@PLIST_PATH]?:[NSDictionary dictionary] mutableCopy];
-	[settings setObject:value forKey: [specifier properties][@"key"]];
-	[settings writeToFile:@(PLIST_PATH) atomically:YES];
+    NSLog(@"*g* Saving to file");
+    NSMutableDictionary * settings = [[[NSDictionary alloc] initWithContentsOfFile:@PLIST_PATH] mutableCopy]?:[NSMutableDictionary dictionary];
+    [settings setObject:value forKey: [specifier properties][@"key"]];
+    [settings writeToFile:@(PLIST_PATH) atomically:YES];
     [settings release];
+    NSLog(@"*g* Saved to file");
 	notify_post("com.giorgioiavicoli.timepass/SettingsChanged");
 }
 
@@ -83,10 +86,11 @@
 }
 
 -(void)passcodeChanged:(id)arg1 {
-    NSMutableDictionary * settings = [[[NSDictionary alloc] initWithContentsOfFile:@PLIST_PATH]?:[NSDictionary dictionary] mutableCopy];
-	[settings setObject:[NSMutableData dataWithLength:0] forKey:@"realPasscodeData"];
-	[settings writeToFile:@(PLIST_PATH) atomically:YES];
-    [settings release];
+    notify_post("com.giorgioiavicoli.timepass/CodeChanged");
+}
+
+-(void)sourceCode:(id)arg1 {
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"https://www.apple.com"]];
 }
 
 @end

@@ -1,78 +1,269 @@
+#import <Foundation/Foundation.h>
+#import <SystemConfiguration/CaptiveNetwork.h>
 #import <notify.h>
-
-#import "NSData+AES.h"
 
 static BOOL isTweakEnabled;
 static BOOL isReversed;
 static BOOL shouldAlwaysShowTime;
 static BOOL use24hFormat;
 static BOOL isSixDigitPasscode;
-static BOOL isParanoid;
 
 static int      timeShift;
-static uint32_t kdRounds;
 
-static NSData   *   UUID;
-static NSData   *   saltData;
-static NSData   *   passKey;
-static NSString *   lastTwoDigits;
-static NSString *   truePasscode;
+static NSString *   truePasscode    = nil;
+static NSString *   lastTwoDigits   = nil;
+static NSDate   *   lastTrueUnlock  = nil;
+static NSDate   *   gracePeriodEnds = nil;
 
-#define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.timepass.plist"
-#define KEY_LENGTH      16
-#define SALT_LENGTH     32 
-#define HASH_TIME_MS    50 
+static unsigned long long lastLockstate = 3;
+
+#define PLIST_PATH                  "/var/mobile/Library/Preferences/com.giorgioiavicoli.timepass.plist"
+#define LOCKSTATE_NEEDSAUTH_MASK    0x02
+#define GRACE_PERIOD_SECS           10
+#define GRACE_PERIOD_WIFI_SECS      60
+
+//#define LOGLINE NSLog(@"*g* %d %s", __LINE__, __FUNCTION__);
 //#define NSLog(...)
 
-static void setValueForKey(id value, NSString *key) 
+
+NSString * stringFromDateAndFormat(NSDate * date, NSString * format);
+NSMutableString * reverseStr(NSString *string);
+NSString * magicPasscode();
+
+
+static void updateLastTrueUnlock()
 {
-    NSLog(@"*g* Setting value for key %@", key);
-    NSMutableDictionary * timePassDict = [[NSMutableDictionary alloc] initWithContentsOfFile:@PLIST_PATH]?:[NSMutableDictionary dictionary];
-    timePassDict[key] = value;
-    [timePassDict writeToFile:@(PLIST_PATH) atomically:YES];
-    [timePassDict release];
+    [lastTrueUnlock     release];
+    lastTrueUnlock  =   [NSDate new];
+    NSLog(@"*g* updated lastTrueUnlock");
 }
 
-static void timePassSettingsChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) 
+static void updateGracePeriod()
 {
-    NSMutableDictionary *timePassDict = [   [   [NSDictionary alloc] 
-                                                initWithContentsOfFile:@PLIST_PATH
-                                            ]?: [NSDictionary dictionary] copy
-                                        ];
+    [gracePeriodEnds    release];
+    // if wifi
+    BOOL isOnWifi = [((NSDictionary *) CNCopyCurrentNetworkInfo(CFSTR("en0")))[@"SSID"] isEqualToString:@"Vodafone-33933659"];
+
+    unsigned long gracePeriod = isOnWifi 
+                                ? GRACE_PERIOD_WIFI_SECS 
+                                : GRACE_PERIOD_SECS;
+    
+    NSLog(@"*g* updating grace period to %lu", gracePeriod);
+    
+    gracePeriodEnds =   [[[NSDate date] dateByAddingTimeInterval: gracePeriod] retain];
+}
+
+
+@interface SBLockScreenManager : NSObject
+@property(readonly) BOOL isUILocked;
++ (id)sharedInstance;
+//- (BOOL)attemptUnlockWithPasscode:(id)arg1;
+- (void)attemptUnlockWithPasscode:(id)arg1 completion:(/*^block*/id)arg2 ;
+- (BOOL)_attemptUnlockWithPasscode:(id)arg1 finishUIUnlock:(BOOL)arg2;
+@end
+
+%hook SBLockScreenManager
+- (void)attemptUnlockWithPasscode:(NSString*)passcode completion:(id)arg2 
+{
+    if (!isTweakEnabled || !passcode || ![passcode length])
+        return %orig;
+    
+    if (truePasscode && [truePasscode length]) { 
+        if ([passcode isEqualToString:magicPasscode()]) {
+            %orig(truePasscode, arg2);
+        } else {
+            %orig;
+            if (![self isUILocked])
+                dispatch_async(dispatch_get_main_queue(), ^{updateLastTrueUnlock(); });
+        }
+    } else {
+        %orig;
+        if (![self isUILocked]) {
+            dispatch_async(dispatch_get_main_queue(), 
+                ^{
+                    UIAlertView *alert =    [   [UIAlertView alloc]
+                                                initWithTitle:@"TimePass"
+                                                message:@"TimePass enabled!"
+                                                delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil
+                                            ];
+                    [alert show];
+                    [alert release];
+
+                    truePasscode = [passcode copy];
+                    updateLastTrueUnlock();
+                }
+            );
+        }
+    }
+}
+%end
+
+
+
+@interface SBUIPasscodeLockViewWithKeypad
+- (id)statusTitleView;
+@end
+
+%hook SBUIPasscodeLockViewWithKeypad
+- (id)statusTitleView
+{
+	if (!truePasscode) {
+		UILabel *label = MSHookIvar<UILabel *>(self, "_statusTitleView");
+		label.text = @"TimePass requires passcode";
+		return label;
+    } else if (lastTrueUnlock) {
+        NSMutableString * str = [NSMutableString stringWithString:@"Last unlock was at "];
+        [str appendString:stringFromDateAndFormat(lastTrueUnlock, use24hFormat ? @"HH:mm:ss" : @"hh:mm:ss")];
+
+		UILabel *label = MSHookIvar<UILabel *>(self, "_statusTitleView");
+		label.text = str;
+		return label;
+    }
+    return %orig;
+}
+%end
+
+
+
+@interface SBLockScreenViewControllerBase
+- (BOOL)shouldShowLockStatusBarTime;
+@end
+
+%hook SBLockScreenViewControllerBase
+- (BOOL)shouldShowLockStatusBarTime 
+{
+    return YES; //shouldAlwaysShowTime || %orig;
+}
+%end
+
+
+
+
+
+
+NSString * magicPasscode() 
+{
+    NSMutableString * pass = [  stringFromDateAndFormat(   
+                                    timeShift 
+                                        ? [[NSDate date] dateByAddingTimeInterval:timeShift * 60]
+                                        : [NSDate date],
+                                    use24hFormat ? @"HHmm" : @"hhmm"
+                                ) mutableCopy
+                            ];
+    if (isReversed)
+        pass = reverseStr(pass);
+
+    if (isSixDigitPasscode)
+        [pass appendString: (lastTwoDigits && lastTwoDigits.length == 2) ? lastTwoDigits : @"00"];
+
+    NSLog(@"*g* Pass would be: %@", pass);
+    return pass;
+}
+
+NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
+{
+    NSDateFormatter *formatter = [NSDateFormatter new];
+    [formatter setLocale:[NSLocale currentLocale]];
+    [formatter setTimeStyle:NSDateFormatterShortStyle];
+    [formatter setDateFormat:format];
+    
+    NSString * string = [formatter stringFromDate:date];
+    [formatter release];
+    return string;
+}
+
+
+NSMutableString * reverseStr(NSString *string) 
+{
+    NSInteger len = [string length];
+    NSMutableString *reversed = [NSMutableString stringWithCapacity:len];
+    
+    for (NSInteger i = (len - 1); i >= 0; i--)
+        [reversed appendFormat:@"%c", [string characterAtIndex:i]];
+
+    return reversed;
+}
+
+
+
+@interface SBLockStateAggregator : NSObject
++(id)sharedInstance;
+-(unsigned long long)lockState;
+@end
+
+
+static void timePassSettingsChanged(CFNotificationCenterRef center, void * observer, 
+                                    CFStringRef name, void const * object, CFDictionaryRef userInfo) 
+{
+    NSDictionary *timePassDict = [  [NSDictionary alloc] 
+                                    initWithContentsOfFile:@PLIST_PATH
+                                ]?: [NSDictionary dictionary];
 
     isTweakEnabled              =       [[timePassDict valueForKey:@"isEnabled"]            ?:@NO boolValue];
     isReversed                  =       [[timePassDict valueForKey:@"isReversed"]           ?:@NO boolValue];
     shouldAlwaysShowTime        =       [[timePassDict valueForKey:@"shouldAlwaysShowTime"] ?:@YES boolValue];
     use24hFormat                =       [[timePassDict valueForKey:@"use24hFormat"]         ?:@YES boolValue];
     isSixDigitPasscode          =       [[timePassDict valueForKey:@"isSixDigitPasscode"]   ?:@YES boolValue];
-    isParanoid                  =       [[timePassDict valueForKey:@"isParanoid"]           ?:@NO boolValue];
+
     timeShift                   = (int) [[timePassDict valueForKey:@"timeShift"]            ?:@(0) intValue];
     lastTwoDigits               =       [[timePassDict valueForKey:@"lastTwoDigits"]        ?:@"00" copy];
 
+    [timePassDict release];    
+}
 
-    kdRounds = (uint32_t)   (timePassDict[@"kdRounds"]  = [timePassDict valueForKey:@"kdRounds"]            
-                                                            ?:@(calibrateRounds(KEY_LENGTH, 
-                                                                                SALT_LENGTH, 
-                                                                                HASH_TIME_MS
-                                                                                )
-                                                                )
-                            );
-    
-    saltData = [timePassDict  valueForKey:@"saltData"];
-    if (!saltData || [saltData length] != SALT_LENGTH)
-        timePassDict[@"saltData"] = saltData = generateSalt(SALT_LENGTH);
+static void timePassCodeChanged(CFNotificationCenterRef center, void * observer, 
+                                CFStringRef name, void const * object, CFDictionaryRef userInfo)
+{
+    [truePasscode release];
+    truePasscode = nil;
+}
 
-    NSData * truePasscodeData   =       [timePassDict  valueForKey:@"truePasscodeData"];
-    if (truePasscodeData && [truePasscodeData length])
-        truePasscode = [[NSString alloc] 
-                        initWithData:AES128Decrypt( truePasscodeData, 
-                                                    passKey = deriveAES128Key(UUID, saltData, kdRounds))
-                        encoding:NSUTF8StringEncoding
-                        ];
-    [truePasscodeData release];
+uint64_t getState(char const * const name)
+{
+    int token;
+    notify_register_check(name, &token);
+    uint64_t state;
+    notify_get_state(token, &state);
+    notify_cancel(token);
+    return state;
+}
 
-    [timePassDict writeToFile:@(PLIST_PATH) atomically:YES];
-    [timePassDict release];
+static void displayStatusChanged(CFNotificationCenterRef center, void * observer, 
+                                    CFStringRef name, void const * object, CFDictionaryRef userInfo) 
+{
+    bool displayState = getState("com.apple.iokit.hid.displayStatus");
+    NSLog(@"*g* display status is %s", displayState ? "ON" : "OFF");
+
+    dispatch_async(dispatch_get_main_queue(), 
+        ^{
+            if (displayState && truePasscode && [truePasscode length]
+                    && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending
+                    && [[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
+            {
+                [   [%c(SBLockScreenManager) sharedInstance] 
+                    _attemptUnlockWithPasscode:truePasscode 
+                    finishUIUnlock:NO
+                ];
+                NSLog(@"*g* Autounlock executed");
+            }
+        }
+    );
+}
+
+static void lockstateChanged(CFNotificationCenterRef center, void * observer, 
+                                CFStringRef name, void const * object, CFDictionaryRef userInfo)
+{
+    unsigned long long state = [[%c(SBLockStateAggregator) sharedInstance] lockState];
+    NSLog(@"*g* Lock state is %llu: %s", 
+            state, 
+            state & LOCKSTATE_NEEDSAUTH_MASK 
+                ? "LOCKED" : "UNLOCKED");
+
+    if((state & LOCKSTATE_NEEDSAUTH_MASK) 
+        && !(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK))
+        updateGracePeriod();
+
+    lastLockstate = state;
 }
 
 %ctor 
@@ -83,92 +274,25 @@ static void timePassSettingsChanged(CFNotificationCenterRef center, void *observ
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
 
-	timePassSettingsChanged(NULL, NULL, CFSTR("com.giorgioiavicoli.timepass/SettingsChanged"), NULL, NULL);
+    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
+                                        timePassCodeChanged,
+                                        CFSTR("com.giorgioiavicoli.timepass/CodeChanged"), NULL, 
+                                        CFNotificationSuspensionBehaviorCoalesce
+                                    );
 
-    unsigned char * buffer = (unsigned char *) alloca(16);
-    [[[UIDevice currentDevice] identifierForVendor] getUUIDBytes:buffer];
-    UUID = [NSData dataWithBytes:buffer length:16];
-    free(buffer);
+	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
+
+    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
+                                        displayStatusChanged, 
+                                        CFSTR("com.apple.iokit.hid.displayStatus"), NULL, 
+                                        0 // Does not delete item from CFNC queue (?)
+                                    );
+
+    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
+                                        lockstateChanged, 
+                                        CFSTR("com.apple.springboard.lockstate"), NULL, 
+                                        0
+                                    );
+
+    timePassSettingsChanged(NULL, NULL, CFSTR("com.giorgioiavicoli.timepass/SettingsChanged"), NULL, NULL);
 }
-
-
-NSString * reverseStr(NSString *string) 
-{
-    NSInteger len = [string length];
-    NSMutableString *reversed = [NSMutableString stringWithCapacity:len];
-    
-    for (NSInteger i = (len - 1); i >= 0; i--)
-        [reversed appendFormat:@"%c", [string characterAtIndex:i]];
-
-    return [reversed autorelease];
-}
-
-NSString * magicPasscode() 
-{
-    NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
-    [formatter setLocale:[NSLocale currentLocale]];
-    [formatter setTimeStyle:NSDateFormatterShortStyle];
-    [formatter setDateFormat:(use24hFormat) ? @"HHmm" : @"hhmm"];
-    
-    NSMutableString * pass = timeShift 
-                                ? [[formatter stringFromDate:[[NSDate date] dateByAddingTimeInterval:timeShift * 60]] mutableCopy] 
-                                : [[formatter stringFromDate:[NSDate date]] mutableCopy];
-    [pass autorelease];
-    [formatter release];
-
-    if (isSixDigitPasscode)
-        [pass appendString: (lastTwoDigits && lastTwoDigits.length == 2) ? lastTwoDigits : @"00"];
-
-    return isReversed ? reverseStr(pass) : pass;
-}
-
-
-@interface SBLockScreenManager : NSObject
-@property(readonly) BOOL isUILocked;
-//+ (id)sharedInstance;
-//- (BOOL)attemptUnlockWithPasscode:(id)arg1;
-- (void)attemptUnlockWithPasscode:(id)arg1 completion:(/*^block*/id)arg2 ;
-@end
-
-%hook SBLockScreenManager
-- (void)attemptUnlockWithPasscode:(NSString*)passcode completion:(id)arg2 {
-    if (!isTweakEnabled)
-        return %orig;
-    
-    if (truePasscode && [truePasscode length]) {
-        if ([passcode isEqualToString:magicPasscode()]) 
-            %orig(truePasscode, arg2);
-        else 
-            %orig;
-    } else {
-        %orig;
-        if (![self isUILocked]) {
-            UIAlertView *alert =    [   [UIAlertView alloc]
-                                        initWithTitle:@"TimePass"
-                                        message:@"TimePass enabled!"
-                                        delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil
-                                    ];
-            [alert show];
-            [alert release];
-
-            truePasscode = [passcode copy];
-
-            if (!isParanoid)
-                setValueForKey( AES128Encrypt([passcode dataUsingEncoding:NSUTF8StringEncoding], passKey), 
-                                @"truePasscodeData");
-        }
-    }
-}
-%end
-
-
-@interface SBLockScreenViewControllerBase
-- (BOOL)shouldShowLockStatusBarTime;
-@end
-
-%hook SBLockScreenViewControllerBase
-- (BOOL)shouldShowLockStatusBarTime 
-{
-    return shouldAlwaysShowTime || %orig;
-}
-%end

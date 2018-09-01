@@ -74,24 +74,6 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
-			<key>key</key>
-			<string>isParanoid</string>
-			<key>label</key>
-			<string>Require normal password at each respring</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
-			<string>Enable this option if you&apos;re paranoid about someone being able to retreive your passcode from this tweak&apos;s preference file. Your passcode will always be stored encrypted.</string>
-		</dict>
-		<dict>
-			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>6-digit passcode options</string>
