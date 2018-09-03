@@ -1,10 +1,10 @@
 THEOS_DEVICE_IP = iPhone.local
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = TimePass
-TimePass_FILES = Tweak.xm
-TimePass_FRAMEWORKS = UIKit
-TimePass_PRIVATE_FRAMEWORKS = SpringBoardFoundation
+TWEAK_NAME = PassBy
+PassBy_FILES = Tweak.xm
+PassBy_FRAMEWORKS = UIKit
+PassBy_PRIVATE_FRAMEWORKS = SpringBoardFoundation
 
 #ADDITIONAL_CFLAGS = -objc-arc
 
@@ -15,5 +15,5 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 after-install::
 	install.exec "killall -9 SpringBoard"
 
-SUBPROJECTS += timepassprefs
+SUBPROJECTS += passbyprefs
 include $(THEOS_MAKE_PATH)/aggregate.mk

@@ -1,9 +1,9 @@
-Package: com.giorgioiavicoli.timepass
-Name: TimePass
+Package: com.zer0g.passby
+Name: PassBy
 Depends: mobilesubstrate
 Version: 1.0
 Architecture: iphoneos-arm
-Description: Use current time to derive a passcode
-Maintainer: Giorgio Iavicoli
-Author: Giorgio Iavicoli
+Description: Bypass passcode in many ways
+Maintainer: zer0_g
+Author: zer0_g
 Section: Tweaks
