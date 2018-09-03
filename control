@@ -4,6 +4,6 @@ Depends: mobilesubstrate
 Version: 1.0
 Architecture: iphoneos-arm
 Description: Bypass passcode in many ways
-Maintainer: zer0_g
-Author: zer0_g
+Maintainer: zer0g
+Author: zer0g
 Section: Tweaks

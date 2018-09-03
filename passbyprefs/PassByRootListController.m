@@ -1,8 +1,8 @@
 #import <notify.h>
 #include "PassByRootListController.h"
 
-#define PLIST_PATH      "/var/mobile/Library/Preferences/com.zer0_g.passby.plist"
-#define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.zer0_g.passbynets.plist"
+#define PLIST_PATH      "/var/mobile/Library/Preferences/com.zer0g.passby.plist"
+#define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.zer0g.passbynets.plist"
 
 
 @implementation PassByRootListController
@@ -38,7 +38,7 @@
     ];
     [settings writeToFile:@(PLIST_PATH) atomically:YES];
     [settings release];
-	notify_post("com.zer0_g.passby/reload");
+	notify_post("com.zer0g.passby/reload");
 }
 
 -(void)resetSettings:(id)arg1 
@@ -50,12 +50,12 @@
 
 -(void)passcodeChanged:(id)arg1 
 {
-    notify_post("com.zer0_g.passby/code");
+    notify_post("com.zer0g.passby/code");
 }
 
 @end
 
-@implementation TPWiFiListController
+@implementation PassByWiFiListController
 
 - (NSArray *)specifiers 
 {
@@ -116,7 +116,7 @@
     ];
     [settings writeToFile:@(WIFI_PLIST_PATH) atomically:YES];
     [settings release];
-    notify_post("com.zer0_g.passby/wifi");
+    notify_post("com.zer0g.passby/wifi");
 }
 @end
 

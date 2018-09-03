@@ -47,8 +47,8 @@ static NSArray  *   allowedSSIDs        = nil;
 static NSString *   truePasscode        = nil;
 static uint64_t     lastLockstate       = 3;
 
-#define PLIST_PATH                  "/var/mobile/Library/Preferences/com.zer0_g.passby.plist"
-#define WIFI_PLIST_PATH             "/var/mobile/Library/Preferences/com.zer0_g.passbynets.plist"
+#define PLIST_PATH                  "/var/mobile/Library/Preferences/com.zer0g.passby.plist"
+#define WIFI_PLIST_PATH             "/var/mobile/Library/Preferences/com.zer0g.passbynets.plist"
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
 BOOL        passcodeChecksOut(NSString * passcode);
@@ -516,19 +516,19 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
 {
 	CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         passBySettingsChanged,
-                                        CFSTR("com.zer0_g.passby/reload"), NULL, 
+                                        CFSTR("com.zer0g.passby/reload"), NULL, 
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
 
     CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         passByWiFiListChanged,
-                                        CFSTR("com.zer0_g.passby/wifi"), NULL, 
+                                        CFSTR("com.zer0g.passby/wifi"), NULL, 
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
 
     CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         passByCodeChanged,
-                                        CFSTR("com.zer0_g.passby/code"), NULL, 
+                                        CFSTR("com.zer0g.passby/code"), NULL, 
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
 	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
