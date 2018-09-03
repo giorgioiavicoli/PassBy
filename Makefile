@@ -3,6 +3,7 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = TimePass
 TimePass_FILES = Tweak.xm
+TimePass_FRAMEWORKS = UIKit
 TimePass_PRIVATE_FRAMEWORKS = SpringBoardFoundation
 
 #ADDITIONAL_CFLAGS = -objc-arc

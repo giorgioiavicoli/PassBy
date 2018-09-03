@@ -5,7 +5,13 @@
 	<key>title</key>
 	<string>TimePass</string>
 	<key>items</key>
-	<array>
+	<array>		
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>No options require respring!</string>
+		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
@@ -38,6 +44,18 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>showLastUnlock</string>
+			<key>label</key>
+			<string>Show last time unlocked</string>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Auto-unlock options</string>
@@ -66,7 +84,7 @@
 			<key>label</key>
 			<string>Auto-unlock timeout</string>
 			<key>placeholder</key>
-			<string>Timeout to disable auto-unlock</string>
+			<string>0 = always require passcode</string>
 			<key>isNumeric</key>
 			<true/>
 		</dict>
@@ -112,9 +130,9 @@
 			<key>key</key>
 			<string>gracePeriodOnWiFi</string>
 			<key>label</key>
-			<string>Auto-unlock timeout on WiFi</string>
-			<key>placeholder</key>
 			<string>Timeout on WiFi</string>
+			<key>placeholder</key>
+			<string>0 = always require passcode</string>
 			<key>isNumeric</key>
 			<true/>
 		</dict>
@@ -138,27 +156,49 @@
 				<string>m</string>
 			</array>
 		</dict>
-		<!--
 		<dict>
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>label</key>
 			<string>Enabled WiFi networks list</string>
-			<key>customControllerClass</key>
+			<key>detail</key>
 			<string>TPWiFiListController</string>
 		</dict>
-		!-->
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<true/>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>headphonesAutoUnlock</string>
+			<key>label</key>
+			<string>Auto-unlock when using headphones</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.timepass</string>
 			<key>key</key>
 			<string>dismissLS</string>
 			<key>label</key>
-			<string>Dismiss LS if no notifications</string>
+			<string>Dismiss lockscreen if no notifications</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.timepass</string>
+			<key>key</key>
+			<string>dismissLSWithMedia</string>
+			<key>label</key>
+			<string>Even when showing media controls</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -231,7 +271,7 @@
 				<string>Date: month</string>
 				<string>Battery: remaining</string>
 				<string>Battery: used</string>
-				<string>Extra: grace period</string>
+				<string>Timeout to lock</string>
 				<string>Custom digits</string>
 			</array>
 			<key>validValues</key>
@@ -254,7 +294,7 @@
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
-			<string>firstCustomDigits</string>
+			<string>firstTwoCustomDigits</string>
 			<key>label</key>
 			<string>Custom Digits</string>
 			<key>placeholder</key>
@@ -293,7 +333,7 @@
 				<string>Date: month</string>
 				<string>Battery: remaining</string>
 				<string>Battery: used</string>
-				<string>Extra: grace period</string>
+				<string>Timeout to lock</string>
 				<string>Custom digits</string>
 			</array>
 			<key>validValues</key>
@@ -316,7 +356,7 @@
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
-			<string>secondCustomDigits</string>
+			<string>secondTwoCustomDigits</string>
 			<key>label</key>
 			<string>Custom Digits</string>
 			<key>placeholder</key>
@@ -355,7 +395,7 @@
 				<string>Date: month</string>
 				<string>Battery: remaining</string>
 				<string>Battery: used</string>
-				<string>Extra: grace period</string>
+				<string>Timeout to lock</string>
 				<string>Custom digits</string>
 			</array>
 			<key>validValues</key>

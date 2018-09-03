@@ -1,12 +1,29 @@
 #import <Foundation/Foundation.h>
 #import <SystemConfiguration/CaptiveNetwork.h>
+#import <CommonCrypto/CommonDigest.h>
 #import <notify.h>
 
 static BOOL isTweakEnabled;
 static BOOL use24hFormat;
-static int  timeShift;
 
 static BOOL isSixDigitPasscode;
+
+static BOOL useGracePeriod;
+static BOOL useGracePeriodOnWiFi;
+static BOOL headphonesAutoUnlock;
+
+static BOOL showLastUnlock;
+static BOOL dismissLS;
+static BOOL dismissLSWithMedia;
+
+static BOOL NCHasContent;
+static BOOL unlockedWithTimeout;
+static BOOL wasUsingHeadphones;
+
+static int  gracePeriod;
+static int  gracePeriodOnWiFi;
+static int  digitsGracePeriod;
+static int  timeShift;
 
 typedef enum : int {
         CUSTOM = 0,
@@ -17,53 +34,54 @@ typedef enum : int {
 } DigitsConfig;
 
 struct Digits {
-    NSString * custom;
     DigitsConfig configuration;
+    char digit0, digit1;
     BOOL reversed;
 } first, second, last;
 
-static NSString *   truePasscode    = nil;
-static NSDate   *   lastTrueUnlock  = nil;
-static NSDate   *   gracePeriodEnds = nil;
+static NSDate   *   lastUnlock          = nil;
+static NSDate   *   gracePeriodEnds     = nil;
+static NSTimer  *   graceTimeoutTimer   = nil;
+static NSArray  *   allowedSSIDs        = nil;
 
-static unsigned long long lastLockstate = 3;
+static NSString *   truePasscode        = nil;
+static uint64_t     lastLockstate       = 3;
 
 #define PLIST_PATH                  "/var/mobile/Library/Preferences/com.giorgioiavicoli.timepass.plist"
+#define WIFI_PLIST_PATH             "/var/mobile/Library/Preferences/com.giorgioiavicoli.timepassnets.plist"
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
-#define GRACE_PERIOD_SECS           10
-#define GRACE_PERIOD_WIFI_SECS      60
 
-//#define LOGLINE NSLog(@"*g* %d %s", __LINE__, __FUNCTION__);
-//#define NSLog(...)
-
-
-NSString * stringFromDateAndFormat(NSDate * date, NSString * format);
-NSMutableString * reverseStr(NSString *string);
-NSString * magicPasscode();
+BOOL        passcodeChecksOut(NSString * passcode);
+NSString *  stringFromDateAndFormat(NSDate * date, NSString * format);
+NSString *  SHA1(NSString * str);
+BOOL        isUsingHeadphones();
 
 
-static void updateLastTrueUnlock()
+static void updateLastUnlock()
 {
-    [lastTrueUnlock     release];
-    lastTrueUnlock  =   [NSDate new];
-    NSLog(@"*g* updated lastTrueUnlock");
+    [lastUnlock release];
+    lastUnlock = [NSDate new];
 }
 
 static void updateGracePeriod()
 {
-    [gracePeriodEnds    release];
-    // if wifi
-    BOOL isOnWifi = [((NSDictionary *) CNCopyCurrentNetworkInfo(CFSTR("en0")))[@"SSID"] isEqualToString:@"Vodafone-33933659"];
+    [gracePeriodEnds release];
 
-    unsigned long gracePeriod = isOnWifi 
-                                ? GRACE_PERIOD_WIFI_SECS 
-                                : GRACE_PERIOD_SECS;
-    
-    NSLog(@"*g* updating grace period to %lu", gracePeriod);
-    
-    gracePeriodEnds =   [[[NSDate date] dateByAddingTimeInterval: gracePeriod] retain];
+    NSString * SSID = ((NSDictionary *)CNCopyCurrentNetworkInfo(CFSTR("en0"))) [@"SSID"];
+
+    if (SSID && [SSID length] && useGracePeriodOnWiFi 
+    && allowedSSIDs && [allowedSSIDs containsObject:SHA1(SSID)])
+        gracePeriodEnds = [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnWiFi] retain];
+    else if (useGracePeriod)
+        gracePeriodEnds = [[[NSDate new] dateByAddingTimeInterval: gracePeriod] retain];
+    else
+        gracePeriodEnds = nil;
 }
 
+
+@interface SBLockScreenViewControllerBase
+-(BOOL)isShowingMediaControls;
+@end
 
 @interface SBLockScreenManager : NSObject
 @property(readonly) BOOL isUILocked;
@@ -71,50 +89,77 @@ static void updateGracePeriod()
 //- (BOOL)attemptUnlockWithPasscode:(id)arg1;
 - (void)attemptUnlockWithPasscode:(id)arg1 completion:(/*^block*/id)arg2 ;
 - (BOOL)_attemptUnlockWithPasscode:(id)arg1 finishUIUnlock:(BOOL)arg2;
+- (SBLockScreenViewControllerBase *)lockScreenViewController;
+@end
+
+@interface SpringBoard
++ (id)sharedApplication;
+- (void)_simulateLockButtonPress;
 @end
 
 %hook SBLockScreenManager
 - (void)attemptUnlockWithPasscode:(NSString*)passcode completion:(id)arg2 
 {
-    if (!isTweakEnabled || !passcode || ![passcode length])
-        return %orig;
-    
-    if (truePasscode && [truePasscode length]) { 
-        if ([passcode isEqualToString:magicPasscode()]) {
+    if (!isTweakEnabled 
+    || !passcode 
+    || [passcode length] != (isSixDigitPasscode ? 6 : 4)
+    ) {
+        %orig;
+    } else if (truePasscode && [truePasscode length]) {
+        if (passcodeChecksOut(passcode)) {
             %orig(truePasscode, arg2);
+            if (first.configuration == GRACE_PERIOD
+            || second.configuration == GRACE_PERIOD
+            || last.configuration == GRACE_PERIOD
+            ) {
+                unlockedWithTimeout = YES;
+                if (digitsGracePeriod) {
+                    graceTimeoutTimer = 
+                        [NSTimer 
+                            scheduledTimerWithTimeInterval:digitsGracePeriod
+                            repeats:NO
+                            block:^(NSTimer *)
+                            {
+                                graceTimeoutTimer = nil;
+                                [   [%c(SpringBoard) sharedApplication] 
+                                    _simulateLockButtonPress
+                                ];
+                            }
+                        ];
+                }
+            }
         } else {
             %orig;
-            if (![self isUILocked])
-                dispatch_async(dispatch_get_main_queue(), 
-                    ^{ 
-                        updateLastTrueUnlock(); 
-                        if (![passcode isEqualToString:truePasscode]) {
-                            [truePasscode release];
-                            truePasscode = [passcode copy];
-                        }
-                    }
-                );
+            if (![self isUILocked] 
+            && ![passcode isEqualToString:truePasscode]) {
+                [truePasscode release];
+                truePasscode = [passcode copy];
+            }
         }
     } else {
         %orig;
         if (![self isUILocked]) {
-            dispatch_async(dispatch_get_main_queue(), 
+            dispatch_async(
+                dispatch_get_main_queue(),
                 ^{
-                    updateLastTrueUnlock();
-                    UIAlertView *alert =    [   [UIAlertView alloc]
-                                                initWithTitle:@"TimePass"
-                                                message:@"TimePass enabled!"
-                                                delegate:nil cancelButtonTitle:@"OK" otherButtonTitles:nil
-                                            ];
-                    [alert show];
-                    [alert release];
-
                     [truePasscode release];
                     truePasscode = [passcode copy];
+
+                    UIAlertView *alert =    
+                        [   [UIAlertView alloc]
+                            initWithTitle:@"TimePass"
+                            message:@"TimePass enabled!"
+                            delegate:nil 
+                            cancelButtonTitle:@"OK" 
+                            otherButtonTitles:nil
+                        ];
+                    [alert show];
+                    [alert release];
                 }
             );
         }
     }
+    updateLastUnlock();
 }
 %end
 
@@ -127,39 +172,87 @@ static void updateGracePeriod()
 %hook SBUIPasscodeLockViewWithKeypad
 - (id)statusTitleView
 {
-	if (!truePasscode) {
-		UILabel *label = MSHookIvar<UILabel *>(self, "_statusTitleView");
-		label.text = @"TimePass requires passcode";
-		return label;
-    } else if (lastTrueUnlock) {
-        NSMutableString * str = [NSMutableString stringWithString:@"Last unlock was at "];
-        [str appendString:stringFromDateAndFormat(lastTrueUnlock, use24hFormat ? @"HH:mm:ss" : @"hh:mm:ss")];
+    if(isTweakEnabled) {
+        if (!truePasscode) {
+            UILabel *label = MSHookIvar<UILabel *>(self, "_statusTitleView");
+            label.text = @"TimePass requires passcode";
+            return label;
+        } else if (showLastUnlock && lastUnlock) {
+            NSMutableString * str = [NSMutableString stringWithString:@"Last unlock was at "];
+            [str appendString:stringFromDateAndFormat(lastUnlock, use24hFormat ? @"HH:mm:ss" : @"hh:mm:ss a")];
 
-		UILabel *label = MSHookIvar<UILabel *>(self, "_statusTitleView");
-		label.text = str;
-		return label;
+            UILabel *label = MSHookIvar<UILabel *>(self, "_statusTitleView");
+            label.text = str;
+            return label;
+        }
     }
     return %orig;
 }
 %end
 
-
-
-NSString * magicPasscode() 
+BOOL digitsCheckOut(struct Digits d, char d0, char d1)
 {
-    NSMutableString * pass = [  stringFromDateAndFormat(   
-                                    timeShift 
-                                        ? [[NSDate date] dateByAddingTimeInterval:timeShift * 60]
-                                        : [NSDate date],
-                                    use24hFormat ? @"HHmm" : @"hhmm"
-                                ) mutableCopy
-                            ];
+    if(d.reversed) {
+        char tmp = d0;
+        d0 = d1;
+        d1 = tmp;
+    }
+    @autoreleasepool {
+        switch(d.configuration) {
+            case CUSTOM:
+                return d0 == d.digit0 
+                    && d1 == d.digit1;
+            case TIME_H: {
+                NSString * date = stringFromDateAndFormat
+                    (   [[NSDate date] 
+                            dateByAddingTimeInterval:timeShift * 60], 
+                        use24hFormat ? @"HH" : @"hh"
+                    );
+                return d0 == [date characterAtIndex:0] 
+                    && d1 == [date characterAtIndex:1];
+            }
+            case TIME_M: {
+                NSString * date = stringFromDateAndFormat
+                    ([[NSDate date] dateByAddingTimeInterval:timeShift * 60], @"mm");
+                return d0 == [date characterAtIndex:0] 
+                    && d1 == [date characterAtIndex:1];
+            }
+            case DATE_M: {
+                NSString * date = stringFromDateAndFormat
+                    ([[NSDate date] dateByAddingTimeInterval:timeShift * 60], @"MM");
+                return d0 == [date characterAtIndex:0] 
+                    && d1 == [date characterAtIndex:1];
+            }
+            case DATE_D: {
+                NSString * date = stringFromDateAndFormat
+                    ([[NSDate date] dateByAddingTimeInterval:timeShift * 60], @"dd");
+                return d0 == [date characterAtIndex:0] 
+                    && d1 == [date characterAtIndex:1];
+            }
+            case BATT_R: {
+                int level = (int) ([[UIDevice currentDevice] batteryLevel] * 100.0f);
+                return d0 == '0' + (level / 10) 
+                    && d1 == '0' + (level % 10);
+            }
+            case BATT_U: {
+                int level = 100 - (int) ([[UIDevice currentDevice] batteryLevel] * 100.0f);
+                return d0 == '0' + (level / 10) 
+                    && d1 == '0' + (level % 10);
+            }
+            case GRACE_PERIOD: {
+                digitsGracePeriod = (d0 - '0') * 60 + (d1 - '0') * 10;
+                return YES;
+            }
+        }
+    }
+    return NO;
+}
 
-    if (isSixDigitPasscode)
-        [pass appendString: @"00"];
-
-    NSLog(@"*g* Pass would be: %@", pass);
-    return pass;
+BOOL passcodeChecksOut(NSString * passcode) 
+{
+    return digitsCheckOut(first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
+        && digitsCheckOut(second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
+        && (!isSixDigitPasscode || digitsCheckOut(last, [passcode characterAtIndex:4], [passcode characterAtIndex:5]));
 }
 
 NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
@@ -174,18 +267,34 @@ NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
     return string;
 }
 
-
-NSMutableString * reverseStr(NSString *string) 
+NSString * SHA1(NSString * str)
 {
-    NSInteger len = [string length];
-    NSMutableString *reversed = [NSMutableString stringWithCapacity:len];
-    
-    for (NSInteger i = (len - 1); i >= 0; i--)
-        [reversed appendFormat:@"%c", [string characterAtIndex:i]];
+    NSMutableData * hashData = [[NSMutableData alloc] initWithLength:CC_SHA1_DIGEST_LENGTH];
+    NSData * data = [str dataUsingEncoding:NSUTF8StringEncoding];
 
-    return reversed;
+    unsigned char * hashBytes = (unsigned char *)[hashData mutableBytes];
+
+    if (CC_SHA1([data bytes], [data length], hashBytes)) {
+        NSUInteger len  = [hashData length];
+        NSMutableString * hash  = [NSMutableString stringWithCapacity:(len * 2)];
+        
+        for (int i = 0; i < len; ++i)
+            [hash appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)hashBytes[i]]];
+        
+        return [NSString stringWithString:hash];
+    }
+    return nil;
 }
 
+@interface VolumeControl
++ (id)sharedVolumeControl;
+- (BOOL)headphonesPresent;
+@end
+
+BOOL isUsingHeadphones()
+{
+    return [[%c(VolumeControl) sharedVolumeControl] headphonesPresent];
+}
 
 DigitsConfig parseDigitsConfiguration(NSString *str)
 {
@@ -225,33 +334,81 @@ DigitsConfig parseDigitsConfiguration(NSString *str)
     return CUSTOM;
 }
 
+
 static void timePassSettingsChanged(CFNotificationCenterRef center, void * observer, 
                                     CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
-    NSDictionary *timePassDict = [  [NSDictionary alloc] 
-                                    initWithContentsOfFile:@PLIST_PATH
-                                ]?: [NSDictionary dictionary];
+    NSDictionary * timePassDict =   [   [NSDictionary alloc] 
+                                        initWithContentsOfFile:@PLIST_PATH
+                                    ]?: [NSDictionary new];
 
-    isTweakEnabled              =       [[timePassDict valueForKey:@"isEnabled"]            ?:@NO boolValue];
-    use24hFormat                =       [[timePassDict valueForKey:@"use24hFormat"]         ?:@YES boolValue];
-    isSixDigitPasscode          =       [[timePassDict valueForKey:@"isSixDigitPasscode"]   ?:@YES boolValue];
+    isTweakEnabled          =   [[timePassDict valueForKey:@"isEnabled"]            ?:@NO boolValue];
+    use24hFormat            =   [[timePassDict valueForKey:@"use24hFormat"]         ?:@YES boolValue];
+    showLastUnlock          =   [[timePassDict valueForKey:@"showLastUnlock"]       ?:@YES boolValue];
 
-    timeShift                   = (int) [[timePassDict valueForKey:@"timeShift"]            ?:@(0) intValue];
+    useGracePeriod          =   [[timePassDict valueForKey:@"useGracePeriod"]       ?:@NO boolValue];
+    gracePeriod             =   [[timePassDict valueForKey:@"gracePeriod"]          ?:@(0) intValue];
+
+    useGracePeriodOnWiFi    =   [[timePassDict valueForKey:@"useGracePeriodOnWiFi"] ?:@NO boolValue];
+    gracePeriodOnWiFi       =   [[timePassDict valueForKey:@"gracePeriodOnWiFi"]    ?:@(0) intValue];
+
+    headphonesAutoUnlock    =   [[timePassDict valueForKey:@"headphonesAutoUnlock"] ?:@NO boolValue];
+
+    dismissLS               =   [[timePassDict valueForKey:@"dismissLS"]            ?:@NO boolValue];
+    dismissLSWithMedia      =   [[timePassDict valueForKey:@"dismissLSWithMedia"]   ?:@NO boolValue];
+
+    timeShift               =   [[timePassDict valueForKey:@"timeShift"]            ?:@(0) intValue];
+    isSixDigitPasscode      =   [[timePassDict valueForKey:@"isSixDigitPasscode"]   ?:@YES boolValue];
+
+    NSString * digits;
+    digits                  =   [timePassDict valueForKey:@"firstTwoCustomDigits"]  ?:@"00";
+    first.digit0            =   [digits characterAtIndex:0];
+    first.digit1            =   [digits characterAtIndex:1];
+    first.configuration     =   parseDigitsConfiguration([timePassDict valueForKey:@"firstTwo"] ?:@"cd");
+    first.reversed          =   [[timePassDict valueForKey:@"firstTwoReversed"]     ?:@NO boolValue];
+
+    digits                  =   [timePassDict valueForKey:@"secondTwoCustomDigits"] ?:@"00";
+    second.digit0           =   [digits characterAtIndex:0];
+    second.digit1           =   [digits characterAtIndex:1];
+    second.configuration    =   parseDigitsConfiguration([timePassDict valueForKey:@"secondTwo"] ?:@"cd");
+    second.reversed         =   [[timePassDict valueForKey:@"secondTwoReversed"]    ?:@NO boolValue];
+
+    digits                  =   [timePassDict valueForKey:@"lastTwoCustomDigits"]   ?:@"00";
+    last.digit0             =   [digits characterAtIndex:0];
+    last.digit1             =   [digits characterAtIndex:1];
+    last.configuration      =   parseDigitsConfiguration([timePassDict valueForKey:@"lastTwo"] ?:@"cd");
+    last.reversed           =   [[timePassDict valueForKey:@"lastTwoReversed"]      ?:@NO boolValue];
 
 
-    first.custom                =       [[timePassDict valueForKey:@"firstTwoCustomDigits"] ?:@"00" copy];
-    first.configuration         =       parseDigitsConfiguration([timePassDict valueForKey:@"firstTwo"] ?:@"cd");
-    first.reversed              =       [[timePassDict valueForKey:@"firstTwoReversed"]     ?:@NO boolValue];
+    if ([[timePassDict valueForKey:@"gracePeriodUnit"] ?:@"m" characterAtIndex:0] == 'm')
+        gracePeriod *= 60;
+    
+    if ([[timePassDict valueForKey:@"gracePeriodUnitOnWiFi"] ?:@"m" characterAtIndex:0] == 'm')
+        gracePeriodOnWiFi *= 60;
 
-    second.custom               =       [[timePassDict valueForKey:@"secondTwoCustomDigits"] ?:@"00" copy];
-    second.configuration        =       parseDigitsConfiguration([timePassDict valueForKey:@"secondTwo"] ?:@"cd");
-    second.reversed             =       [[timePassDict valueForKey:@"secondTwoReversed"]     ?:@NO boolValue];
-
-    last.custom                 =       [[timePassDict valueForKey:@"lastTwoCustomDigits"] ?:@"00" copy];
-    last.configuration          =       parseDigitsConfiguration([timePassDict valueForKey:@"lastTwo"] ?:@"cd");
-    last.reversed               =       [[timePassDict valueForKey:@"lastTwoReversed"]     ?:@NO boolValue];
+    if ([[timePassDict valueForKey:@"timeShiftDirection"] ?:@"+" characterAtIndex:0] == '-')
+        timeShift = -timeShift;
 
     [timePassDict release];    
+}
+
+static void timePassWiFiListChanged(CFNotificationCenterRef center, void * observer, 
+                                    CFStringRef name, void const * object, CFDictionaryRef userInfo)
+{
+    NSDictionary * WiFiListDict =   [   [NSDictionary alloc] 
+                                        initWithContentsOfFile:@WIFI_PLIST_PATH
+                                    ]?: [NSDictionary new];
+
+    NSMutableArray * WiFiListArr = [[NSMutableArray alloc] initWithCapacity:[WiFiListDict count]];
+
+    for(NSString * key in [WiFiListDict keyEnumerator])
+        if([[WiFiListDict valueForKey:key] boolValue])
+            [WiFiListArr addObject:[key copy]];
+    
+    [WiFiListDict release];
+    [allowedSSIDs release];
+    allowedSSIDs = [[NSArray alloc] initWithArray:WiFiListArr copyItems:NO];
+    [WiFiListArr release];
 }
 
 static void timePassCodeChanged(CFNotificationCenterRef center, void * observer, 
@@ -261,6 +418,22 @@ static void timePassCodeChanged(CFNotificationCenterRef center, void * observer,
     truePasscode = nil;
 }
 
+@interface NCNotificationCombinedListViewController : UIViewController
+- (BOOL)hasContent;
+@end
+
+%hook NCNotificationCombinedListViewController
+- (void)viewWillLayoutSubviews
+{
+	%orig;
+	NCHasContent = [self hasContent];
+}
+%end
+
+
+@interface SBAssistantController
++(BOOL) isAssistantVisible;
+@end
 
 @interface SBLockStateAggregator : NSObject
 +(id)sharedInstance;
@@ -280,39 +453,63 @@ uint64_t getState(char const * const name)
 static void displayStatusChanged(   CFNotificationCenterRef center, void * observer, 
                                     CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
-    bool displayState = getState("com.apple.iokit.hid.displayStatus");
-    NSLog(@"*g* display status is %s", displayState ? "ON" : "OFF");
-
-    dispatch_async(dispatch_get_main_queue(), 
-        ^{
-            if (displayState && truePasscode && [truePasscode length]
-            && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending
-            && [[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
-            {
-                [   [%c(SBLockScreenManager) sharedInstance] 
-                    _attemptUnlockWithPasscode:truePasscode 
-                    finishUIUnlock:NO
-                ];
-                NSLog(@"*g* Autounlock executed");
+    if(isTweakEnabled)
+        dispatch_after(
+            dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_MSEC),
+            dispatch_get_main_queue(),
+            ^{
+                if (getState("com.apple.iokit.hid.displayStatus")) {
+                    wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones();
+                    if (truePasscode && [truePasscode length]
+                    &&  (   
+                            (gracePeriodEnds && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
+                            || (headphonesAutoUnlock && wasUsingHeadphones)
+                        ) 
+                    && [[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK
+                    ) {
+                        [   [%c(SBLockScreenManager) sharedInstance] 
+                            _attemptUnlockWithPasscode:truePasscode 
+                            finishUIUnlock: dismissLS 
+                                            && !NCHasContent 
+                                            && (dismissLSWithMedia || ![[   [%c(SBLockScreenManager) sharedInstance] 
+                                                                            lockScreenViewController
+                                                                        ] isShowingMediaControls])
+                                            && ![%c(SBAssistantController) isAssistantVisible]
+                        ];
+                    }
+                }
             }
-        }
-    );
+        );
 }
 
 static void lockstateChanged(   CFNotificationCenterRef center, void * observer, 
                                 CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
-    unsigned long long state = [[%c(SBLockStateAggregator) sharedInstance] lockState];
-    NSLog(@"*g* Lock state is %llu: %s", 
-            state, 
-            state & LOCKSTATE_NEEDSAUTH_MASK 
-                ? "LOCKED" : "UNLOCKED");
+    if(isTweakEnabled)
+        dispatch_async(
+            dispatch_get_main_queue(),
+            ^{
+                unsigned long long state = [[%c(SBLockStateAggregator) sharedInstance] lockState];
 
-    if((state & LOCKSTATE_NEEDSAUTH_MASK) 
-    && !(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK))
-        updateGracePeriod();
-
-    lastLockstate = state;
+                if((state & LOCKSTATE_NEEDSAUTH_MASK) 
+                && !(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK)
+                ) {
+                    if (graceTimeoutTimer) {
+                        [graceTimeoutTimer invalidate];
+                        graceTimeoutTimer = nil;
+                    } else if(unlockedWithTimeout) {
+                        [gracePeriodEnds release];
+                        graceTimeoutTimer = nil;
+                        wasUsingHeadphones = NO;
+                    } else {
+                        updateGracePeriod();
+                        wasUsingHeadphones = isUsingHeadphones();
+                    }
+                    unlockedWithTimeout = NO;
+                }
+                lastLockstate = state;
+            }
+        );
 }
 
 %ctor 
@@ -324,12 +521,18 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
                                     );
 
     CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
+                                        timePassWiFiListChanged,
+                                        CFSTR("com.giorgioiavicoli.timepass/WiFiListChanged"), NULL, 
+                                        CFNotificationSuspensionBehaviorCoalesce
+                                    );
+
+    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         timePassCodeChanged,
                                         CFSTR("com.giorgioiavicoli.timepass/CodeChanged"), NULL, 
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
-
 	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
+	dlopen("/System/Library/PrivateFrameworks/UserNotificationsUIKit.framework/UserNotificationsUIKit", RTLD_LAZY);
 
     CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         displayStatusChanged, 
@@ -344,4 +547,6 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
                                     );
 
     timePassSettingsChanged(NULL, NULL, CFSTR("com.giorgioiavicoli.timepass/SettingsChanged"), NULL, NULL);
+    timePassWiFiListChanged(NULL, NULL, CFSTR("com.giorgioiavicoli.timepass/WiFiListChanged"), NULL, NULL);
+    wasUsingHeadphones  = NO;
 }
