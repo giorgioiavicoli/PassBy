@@ -1,4 +1,6 @@
-THEOS_DEVICE_IP = iPhone.local
+THEOS_DEVICE_IP = 192.168.1.7
+#192.168.1.7
+#iPhone.local
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = PassBy

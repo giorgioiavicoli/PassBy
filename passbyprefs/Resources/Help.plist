@@ -112,8 +112,10 @@
 			<key>label</key>
 			<string>Use magic passcode</string>
 			<key>footerText</key>
-			<string>Gives the ability to unlock the device with a secondary passcode. If unlocked with this code, the auto-unlock feature will temporarily be disabled.
-
+			<string>Gives the ability to unlock the device with a secondary passcode. If unlocked with this code, the auto-unlock feature will temporarily be disabled.</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
@@ -157,10 +159,28 @@
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>NOTE: If multilple digit pairs are chosen as timeout, only the last pair will be considered: if all are selected to be so, the phone will unlock with any code</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
 			<key>label</key>
 			<string>Reverse</string>
 			<key>footerText</key>
-			<string>Swap the digit pair, on all options</string>
+			<string>Invert the order of the digit pair, applies to all digit options</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Time Shift</string>
+			<key>footerText</key>
+			<string>Apply a mathematical operation to the time value used in a digit pair (for example, with time shift +30 minutes, at 9:41, the time after the shift would be 10:11 therefore the corresponding minute pair would be 11, and the hour one would be 10. This also applies to dates!</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>

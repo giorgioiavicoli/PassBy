@@ -86,40 +86,60 @@ static void updateGracePeriods()
     wasUsingHeadphones = isUsingHeadphones();
 }
 
+static void unlockedWithPrimary(NSString * passcode)
+{
+    dispatch_async(
+        dispatch_get_main_queue(),
+        ^{
+            updateLastUnlock();
+            isInSOSMode = NO;
+            if (![passcode isEqualToString:truePasscode]) {
+                [truePasscode release];
+                truePasscode = [passcode copy];
+            }
+        }
+    );
+}
 
-@interface SBLockScreenViewControllerBase
--(BOOL)isShowingMediaControls;
-@end
+static void unlockedWithPrimaryForFirstTime(NSString * passcode) 
+{
+    dispatch_async(
+        dispatch_get_main_queue(),
+        ^{
+            updateLastUnlock();
 
-@interface SBLockScreenManager : NSObject
-@property(readonly) BOOL isUILocked;
-+ (id)sharedInstance;
-//- (BOOL)attemptUnlockWithPasscode:(id)arg1;
-- (void)attemptUnlockWithPasscode:(id)arg1 completion:(/*^block*/id)arg2 ;
-- (BOOL)_attemptUnlockWithPasscode:(id)arg1 finishUIUnlock:(BOOL)arg2;
-- (SBLockScreenViewControllerBase *)lockScreenViewController;
-@end
+            [truePasscode release];
+            truePasscode = [passcode copy];
+
+            UIAlertView *alert =    
+                [   [UIAlertView alloc]
+                    initWithTitle:@"PassBy"
+                    message:@"PassBy enabled!"
+                    delegate:nil 
+                    cancelButtonTitle:@"OK" 
+                    otherButtonTitles:nil
+                ];
+            [alert show];
+            [alert release];
+        }
+    );
+}
 
 @interface SpringBoard
 + (id)sharedApplication;
 - (void)_simulateLockButtonPress;
 @end
 
-%hook SBLockScreenManager
-- (void)attemptUnlockWithPasscode:(NSString*)passcode completion:(id)arg2 
+static void unlockedWithSecondary()
 {
-    if (!isTweakEnabled 
-    || !passcode 
-    || [passcode length] != (isSixDigitPasscode ? 6 : 4)
-    || (!useMagicPasscode && truePasscode)
-    ) {
-        %orig;
-    } else if (truePasscode && [truePasscode length]) {
-        if (!isInSOSMode && passcodeChecksOut(passcode)) {
-            %orig(truePasscode, arg2);
+    dispatch_async(
+        dispatch_get_main_queue(),
+        ^{
+            updateLastUnlock();
+
             if (first.configuration == GRACE_PERIOD
             || second.configuration == GRACE_PERIOD
-            || last.configuration == GRACE_PERIOD
+            || (isSixDigitPasscode && last.configuration == GRACE_PERIOD)
             ) {
                 unlockedWithTimeout = YES;
                 if (digitsGracePeriod) {
@@ -137,41 +157,93 @@ static void updateGracePeriods()
                         ];
                 }
             }
+        }
+    );
+}
+
+@class SBLockScreenViewControllerBase; //Forward declaration
+
+@interface SBLockScreenManager : NSObject
+@property(readonly) BOOL isUILocked;
++ (id)sharedInstance;
+- (BOOL)attemptUnlockWithPasscode:(NSString *)passcode;
+- (void)attemptUnlockWithPasscode:(NSString *)passcode completion:(/*^block*/id)arg2 ;
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode finishUIUnlock:(BOOL)arg2;
+- (SBLockScreenViewControllerBase *) lockScreenViewController;
+@end
+
+
+@interface SBFAuthenticationRequest : NSObject
+- (NSData *)payload;
+@end
+
+@interface SBFUserAuthenticationController
+- (void)processAuthenticationRequest:(SBFAuthenticationRequest *)arg1 responder:(id)arg2;
+@end
+
+%group iOS10
+%hook SBFUserAuthenticationController
+- (void)processAuthenticationRequest:(SBFAuthenticationRequest *)request responder:(id)arg2 
+{
+    NSString * passcode = [ [[NSString alloc] retain]
+                            initWithData:[request payload]
+                            encoding:NSASCIIStringEncoding
+                        ];
+    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
+
+    if (!isTweakEnabled 
+    || !passcode 
+    || [passcode length] != (isSixDigitPasscode ? 6 : 4)
+    || (!useMagicPasscode && truePasscode)
+    ) {
+        %orig;
+    } else if (truePasscode && [truePasscode length]) {
+        if (![truePasscode isEqualToString:passcode] && !isInSOSMode && passcodeChecksOut(passcode)) {
+            [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES];
+            if (![SBLSManager isUILocked]) 
+                unlockedWithSecondary();
         } else {
             %orig;
-            if (![self isUILocked]) {
-                isInSOSMode = NO;
-                if (![passcode isEqualToString:truePasscode]) {
-                    [truePasscode release];
-                    truePasscode = [passcode copy];
-                }
-            }
+            if (![SBLSManager isUILocked]) 
+                unlockedWithPrimary(passcode);
         }
     } else {
         %orig;
-        if (![self isUILocked]) {
-            dispatch_async(
-                dispatch_get_main_queue(),
-                ^{
-                    [truePasscode release];
-                    truePasscode = [passcode copy];
-
-                    UIAlertView *alert =    
-                        [   [UIAlertView alloc]
-                            initWithTitle:@"PassBy"
-                            message:@"PassBy enabled!"
-                            delegate:nil 
-                            cancelButtonTitle:@"OK" 
-                            otherButtonTitles:nil
-                        ];
-                    [alert show];
-                    [alert release];
-                }
-            );
-        }
+        if (![SBLSManager isUILocked]) 
+            unlockedWithPrimaryForFirstTime(passcode);
     }
-    updateLastUnlock();
+    [passcode release];
 }
+%end
+%end
+
+%group iOS11
+%hook SBLockScreenManager
+- (void)attemptUnlockWithPasscode:(NSString*)passcode completion:(id)arg2 
+{
+    if (!isTweakEnabled 
+    || !passcode 
+    || [passcode length] != (isSixDigitPasscode ? 6 : 4)
+    || (!useMagicPasscode && truePasscode)
+    ) {
+        %orig;
+    } else if (truePasscode && [truePasscode length]) {
+        if (![truePasscode isEqualToString:passcode] && !isInSOSMode && passcodeChecksOut(passcode)) {
+            %orig(truePasscode, arg2);
+            if (![self isUILocked])
+                unlockedWithSecondary();
+        } else {
+            %orig;
+            if (![self isUILocked])
+                unlockedWithPrimary(passcode);
+        }
+    } else {
+        %orig;
+        if (![self isUILocked]) 
+            unlockedWithPrimaryForFirstTime(passcode);
+    }
+}
+%end
 %end
 
 
@@ -382,20 +454,32 @@ static void passBySettingsChanged(CFNotificationCenterRef center, void * observe
 
     NSString * digits;
     digits                  =   [passByDict valueForKey:@"firstTwoCustomDigits"]    ?:@"00";
-    first.digit0            =   [digits characterAtIndex:0];
-    first.digit1            =   [digits characterAtIndex:1];
+    if ([digits length] == 2) {
+        first.digit0            =   [digits characterAtIndex:0];
+        first.digit1            =   [digits characterAtIndex:1];
+    } else {
+        first.digit1 = first.digit0 = '0';
+    }
     first.configuration     =   parseDigitsConfiguration([passByDict valueForKey:@"firstTwo"] ?:@"cd");
     first.reversed          =   [[passByDict valueForKey:@"firstTwoReversed"]       ?:@NO boolValue];
 
     digits                  =   [passByDict valueForKey:@"secondTwoCustomDigits"]   ?:@"00";
-    second.digit0           =   [digits characterAtIndex:0];
-    second.digit1           =   [digits characterAtIndex:1];
+    if ([digits length] == 2) {
+        second.digit0           =   [digits characterAtIndex:0];
+        second.digit1           =   [digits characterAtIndex:1];
+    } else {
+        second.digit1 = second.digit0 = '0';
+    }
     second.configuration    =   parseDigitsConfiguration([passByDict valueForKey:@"secondTwo"] ?:@"cd");
     second.reversed         =   [[passByDict valueForKey:@"secondTwoReversed"]      ?:@NO boolValue];
 
     digits                  =   [passByDict valueForKey:@"lastTwoCustomDigits"]     ?:@"00";
-    last.digit0             =   [digits characterAtIndex:0];
-    last.digit1             =   [digits characterAtIndex:1];
+    if ([digits length] == 2) {
+        last.digit0             =   [digits characterAtIndex:0];
+        last.digit1             =   [digits characterAtIndex:1];
+    } else {
+        last.digit1 = last.digit0 = '0';
+    }
     last.configuration      =   parseDigitsConfiguration([passByDict valueForKey:@"lastTwo"] ?:@"cd");
     last.reversed           =   [[passByDict valueForKey:@"lastTwoReversed"]        ?:@NO boolValue];
 
@@ -431,7 +515,8 @@ static void passByWiFiListChanged(CFNotificationCenterRef center, void * observe
     [WiFiListArr release];
 }
 
-@interface NCNotificationCombinedListViewController : UIViewController
+
+@interface NCNotificationCombinedListViewController
 - (BOOL)hasContent;
 @end
 
@@ -443,10 +528,14 @@ static void passByWiFiListChanged(CFNotificationCenterRef center, void * observe
 }
 %end
 
+@interface SBLockScreenViewControllerBase
+-(BOOL)isShowingMediaControls;
+@end
 
 @interface SBAssistantController
 +(BOOL) isAssistantVisible;
 @end
+
 
 @interface SBLockStateAggregator : NSObject
 +(id)sharedInstance;
@@ -532,6 +621,7 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
                     }
                     unlockedWithTimeout = NO;
                 }
+
                 lastLockstate = state;
             }
         );
@@ -551,6 +641,12 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
 
 %ctor 
 {
+    %init;
+    if(kCFCoreFoundationVersionNumber >= 1443.00)
+        %init(iOS11)
+    else
+        %init(iOS10)
+
 	CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         passBySettingsChanged,
                                         CFSTR("com.giorgioiavicoli.passby/reload"), NULL, 

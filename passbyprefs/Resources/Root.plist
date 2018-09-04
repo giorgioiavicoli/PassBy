@@ -484,6 +484,22 @@
 			<key>action</key>
 			<string>resetSettings:</string>
 		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Send feedback</string>
+			<key>action</key>
+			<string>sendFeedback:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Developed by Giorgio Iavicoli</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
 	</array>
 </dict>
 </plist>

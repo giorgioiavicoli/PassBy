@@ -48,6 +48,15 @@
     [self reloadSpecifiers];
 }
 
+-(void)sendFeedback:(id)arg1 
+{
+    [   [UIApplication sharedApplication] 
+        openURL:[NSURL URLWithString:@"mailto:giorgio.iavicoli@icloud.com?subject=Feedback%%20on%%20PassBy"]
+        options:[NSDictionary dictionary]
+        completionHandler:^(BOOL success){}
+    ];
+}
+
 @end
 
 @implementation PassByWiFiListController
