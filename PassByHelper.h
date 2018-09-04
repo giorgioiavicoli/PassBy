@@ -81,14 +81,14 @@ static BOOL evalTimeM(struct Digits * config, char d0, char d1)
     return evalDateTimeHelper(@"mm", d0, d1, config->reversed);
 }
 
-static BOOL evalDateM(struct Digits * config, char d0, char d1)
-{
-    return evalDateTimeHelper(@"MM", d0, d1, config->reversed);
-}
-
 static BOOL evalDateD(struct Digits * config, char d0, char d1)
 {
     return evalDateTimeHelper(@"dd", d0, d1, config->reversed);
+}
+
+static BOOL evalDateM(struct Digits * config, char d0, char d1)
+{
+    return evalDateTimeHelper(@"MM", d0, d1, config->reversed);
 }
 
 static BOOL evalBattR(struct Digits * config, char d0, char d1)
@@ -124,6 +124,59 @@ static BOOL evalGraceP(struct Digits * config, char d0, char d1)
     }
     digitsGracePeriod = (d0 - '0') * 60 + (d1 - '0') * 10;
     return TRUE;
+}
+
+enum DigitConfig : int {
+    CONFIG_TIMEH    = 0,
+    CONFIG_TIMEM    = 1,
+    CONFIG_DATED    = 2,
+    CONFIG_DATEM    = 3,
+    CONFIG_BATTR    = 4,
+    CONFIG_BATTU    = 5,
+    CONFIG_GRACEP   = 6,
+    CONFIG_CUSTOM   = 7
+};
+
+void parseDigitsConfiguration(struct Digits * digits, 
+    NSString * custom, int config, BOOL reversed)
+{
+    digits->reversed        = reversed;
+    digits->isGracePeriod   = NO;
+
+    switch(config) {
+        case CONFIG_TIMEH:
+            digits->eval = evalTimeH;
+            return;
+        case CONFIG_TIMEM:
+            digits->eval = evalTimeM;
+            return;
+        case CONFIG_DATED:
+            digits->eval = evalDateD;
+            return;
+        case CONFIG_DATEM:
+            digits->eval = evalDateM;
+            return;
+        case CONFIG_BATTR:
+            digits->eval = evalBattR;
+            return;
+        case CONFIG_BATTU:
+            digits->eval = evalBattU;
+            return;
+        case CONFIG_GRACEP:
+            digits->eval = evalGraceP;
+            digits->isGracePeriod = YES;
+            return;
+        case CONFIG_CUSTOM:
+        default:
+            if ([custom length] == 2) {
+                digits->digit0 = [custom characterAtIndex:0];
+                digits->digit1 = [custom characterAtIndex:1];
+            } else {
+                digits->digit1 = digits->digit0 = '0';
+            }
+            digits->eval = evalCustom;
+            return;
+    }
 }
 
 #endif // PASSBYHELPER_H

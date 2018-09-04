@@ -116,7 +116,7 @@
 			<key>label</key>
 			<string>Auto-unlock timeout</string>
 			<key>placeholder</key>
-			<string>0 = always require passcode</string>
+			<string>0 = never require passcode</string>
 			<key>isNumeric</key>
 			<true/>
 		</dict>
@@ -164,7 +164,7 @@
 			<key>label</key>
 			<string>Timeout on Wi-Fi</string>
 			<key>placeholder</key>
-			<string>0 = always require passcode</string>
+			<string>0 = never require passcode</string>
 			<key>isNumeric</key>
 			<true/>
 		</dict>
@@ -274,14 +274,14 @@
 			</array>
 			<key>validValues</key>
 			<array>
-				<string>th</string>
-				<string>tm</string>
-				<string>dd</string>
-				<string>dm</string>
-				<string>br</string>
-				<string>bu</string>
-				<string>gp</string>
-				<string>cd</string>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
 			</array>
 		</dict>
 		<dict>
@@ -336,14 +336,14 @@
 			</array>
 			<key>validValues</key>
 			<array>
-				<string>th</string>
-				<string>tm</string>
-				<string>dd</string>
-				<string>dm</string>
-				<string>br</string>
-				<string>bu</string>
-				<string>gp</string>
-				<string>cd</string>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
 			</array>
 		</dict>
 		<dict>
@@ -398,14 +398,14 @@
 			</array>
 			<key>validValues</key>
 			<array>
-				<string>th</string>
-				<string>tm</string>
-				<string>dd</string>
-				<string>dm</string>
-				<string>br</string>
-				<string>bu</string>
-				<string>gp</string>
-				<string>cd</string>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
 			</array>
 		</dict>
 		<dict>

@@ -44,10 +44,8 @@ static uint64_t     lastLockstate       = 3;
 #define WIFI_PLIST_PATH             "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
-BOOL        passcodeChecksOut(NSString * passcode);
-BOOL        isUsingHeadphones();
-BOOL        isUsingWiFi();
-
+BOOL isUsingHeadphones();
+BOOL isUsingWiFi();
 
 static void updateLastUnlock()
 {
@@ -62,13 +60,17 @@ static void updateGracePeriods()
 
     gracePeriodWiFiEnds = 
         useGracePeriodOnWiFi && isUsingWiFi()
-            ? [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnWiFi] retain]
-            : nil;
+            ? (gracePeriodOnWiFi 
+                ? [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnWiFi] retain]
+                : [[NSDate distantFuture] copy]
+            ) : nil;
 
     gracePeriodEnds = 
         useGracePeriod 
-            ? [[[NSDate new] dateByAddingTimeInterval: gracePeriod] retain]
-            : nil;
+            ? (gracePeriod
+                ? [[[NSDate new] dateByAddingTimeInterval: gracePeriod] retain]
+                : [[NSDate distantFuture] copy]
+            ) : nil;
     
     wasUsingHeadphones = isUsingHeadphones();
 }
@@ -110,6 +112,15 @@ static void unlockedWithPrimaryForFirstTime(NSString * passcode)
             [alert release];
         }
     );
+}
+
+BOOL passcodeChecksOut(NSString * passcode) 
+{
+    return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
+        && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
+        && (!isSixDigitPasscode 
+            || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5])
+        );
 }
 
 @interface SpringBoard
@@ -234,7 +245,6 @@ static void unlockedWithSecondary()
 %end
 
 
-
 @interface SBUIPasscodeLockViewWithKeypad
 - (id)statusTitleView;
 @end
@@ -260,12 +270,20 @@ static void unlockedWithSecondary()
 }
 %end
 
-BOOL passcodeChecksOut(NSString * passcode) 
+
+@interface SBSOSLockGestureObserver
+- (void)pressSequenceRecognizerDidCompleteSequence:(id)arg1 ;
+@end
+
+%hook SBSOSLockGestureObserver
+- (void)pressSequenceRecognizerDidCompleteSequence:(id)arg1
 {
-    return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
-        && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
-        && (!isSixDigitPasscode || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5]));
+    %orig;
+    isInSOSMode = disableInSOSMode;
 }
+%end
+
+
 
 @interface VolumeControl
 + (id)sharedVolumeControl;
@@ -283,133 +301,6 @@ BOOL isUsingWiFi()
     return SSID && [SSID length] && useGracePeriodOnWiFi 
         && allowedSSIDs && [allowedSSIDs containsObject:SHA1(SSID)];
 }
-
-void parseDigitsConfiguration(struct Digits * digits, NSString * str)
-{
-    digits->isGracePeriod = NO;
-    if(!str || [str length] != 2) {
-        digits->eval = evalCustom;
-    } else {
-        char c0 = [str characterAtIndex:0];
-        char c1 = [str characterAtIndex:1];
-
-        if(c0 == 't') {
-            if(c1 == 'h')
-                digits->eval = evalTimeH;
-            else if(c1 == 'm')
-                digits->eval = evalTimeM;
-        } else if(c0 == 'd') {
-            if(c1 == 'd')
-                digits->eval = evalDateD;
-            else if(c1 == 'm')
-                digits->eval = evalDateM;
-        } else if(c0 == 'b') {
-            if(c1 == 'r')
-                digits->eval = evalBattR;
-            else if(c1 == 'u')
-                digits->eval = evalBattU;
-        } else if(c0 == 'c' && c1 == 'd') {
-            digits->eval = evalCustom;
-        } else if(c0 == 'g' && c1 == 'p') {
-            digits->eval = evalGraceP;
-            digits->isGracePeriod = YES;
-        } else {
-            digits->eval = evalCustom;
-        }
-    }
-}
-
-
-static void passBySettingsChanged(CFNotificationCenterRef center, void * observer, 
-                                    CFStringRef name, void const * object, CFDictionaryRef userInfo) 
-{
-    NSDictionary * passByDict =   [   [NSDictionary alloc] 
-                                        initWithContentsOfFile:@PLIST_PATH
-                                    ]?: [NSDictionary new];
-
-    isTweakEnabled          =   [[passByDict valueForKey:@"isEnabled"]              ?:@NO boolValue];
-    disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
-    use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
-    showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
-
-    useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO boolValue];
-    gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0) intValue];
-
-    useGracePeriodOnWiFi    =   [[passByDict valueForKey:@"useGracePeriodOnWiFi"]   ?:@NO boolValue];
-    gracePeriodOnWiFi       =   [[passByDict valueForKey:@"gracePeriodOnWiFi"]      ?:@(0) intValue];
-
-    headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO boolValue];
-
-    dismissLS               =   [[passByDict valueForKey:@"dismissLS"]              ?:@NO boolValue];
-    dismissLSWithMedia      =   [[passByDict valueForKey:@"dismissLSWithMedia"]     ?:@NO boolValue];
-
-    timeShift               =   [[passByDict valueForKey:@"timeShift"]              ?:@(0) intValue];
-    isSixDigitPasscode      =   [[passByDict valueForKey:@"isSixDigitPasscode"]     ?:@YES boolValue];
-    useMagicPasscode        =   [[passByDict valueForKey:@"useMagicPasscode"]       ?:@NO boolValue];
-
-    NSString * digits;
-    digits                  =   [passByDict valueForKey:@"firstTwoCustomDigits"]    ?:@"00";
-    if ([digits length] == 2) {
-        first.digit0            =   [digits characterAtIndex:0];
-        first.digit1            =   [digits characterAtIndex:1];
-    } else {
-        first.digit1 = first.digit0 = '0';
-    }
-    parseDigitsConfiguration(&first, [passByDict valueForKey:@"firstTwo"] ?:@"cd");
-    first.reversed          =   [[passByDict valueForKey:@"firstTwoReversed"]       ?:@NO boolValue];
-
-    digits                  =   [passByDict valueForKey:@"secondTwoCustomDigits"]   ?:@"00";
-    if ([digits length] == 2) {
-        second.digit0           =   [digits characterAtIndex:0];
-        second.digit1           =   [digits characterAtIndex:1];
-    } else {
-        second.digit1 = second.digit0 = '0';
-    }
-    parseDigitsConfiguration(&second, [passByDict valueForKey:@"secondTwo"] ?:@"cd");
-    second.reversed         =   [[passByDict valueForKey:@"secondTwoReversed"]      ?:@NO boolValue];
-
-    digits                  =   [passByDict valueForKey:@"lastTwoCustomDigits"]     ?:@"00";
-    if ([digits length] == 2) {
-        last.digit0             =   [digits characterAtIndex:0];
-        last.digit1             =   [digits characterAtIndex:1];
-    } else {
-        last.digit1 = last.digit0 = '0';
-    }
-    parseDigitsConfiguration(&last, [passByDict valueForKey:@"lastTwo"] ?:@"cd");
-    last.reversed           =   [[passByDict valueForKey:@"lastTwoReversed"]        ?:@NO boolValue];
-
-
-    if ([[passByDict valueForKey:@"gracePeriodUnit"] ?:@"m" characterAtIndex:0] == 'm')
-        gracePeriod *= 60;
-    
-    if ([[passByDict valueForKey:@"gracePeriodUnitOnWiFi"] ?:@"m" characterAtIndex:0] == 'm')
-        gracePeriodOnWiFi *= 60;
-
-    if ([[passByDict valueForKey:@"timeShiftDirection"] ?:@"+" characterAtIndex:0] == '-')
-        timeShift = -timeShift;
-
-    [passByDict release];    
-}
-
-static void passByWiFiListChanged(CFNotificationCenterRef center, void * observer, 
-                                    CFStringRef name, void const * object, CFDictionaryRef userInfo)
-{
-    NSDictionary * WiFiListDict =   [   [NSDictionary alloc] 
-                                        initWithContentsOfFile:@WIFI_PLIST_PATH
-                                    ]?: [NSDictionary new];
-
-    NSMutableArray * WiFiListArr = [[NSMutableArray alloc] initWithCapacity:[WiFiListDict count]];
-
-    for(NSString * key in [WiFiListDict keyEnumerator])
-        if([[WiFiListDict valueForKey:key] boolValue])
-            [WiFiListArr addObject:[key copy]];
-    
-    [WiFiListDict release];
-    [allowedSSIDs release];
-    allowedSSIDs = [[NSArray alloc] initWithArray:WiFiListArr copyItems:NO];
-    [WiFiListArr release];
-}
-
 
 @interface NCNotificationCombinedListViewController
 - (BOOL)hasContent;
@@ -430,7 +321,6 @@ static void passByWiFiListChanged(CFNotificationCenterRef center, void * observe
 @interface SBAssistantController
 +(BOOL) isAssistantVisible;
 @end
-
 
 @interface SBLockStateAggregator : NSObject
 +(id)sharedInstance;
@@ -467,8 +357,10 @@ BOOL isInGrace()
     return NO;
 }
 
-static void displayStatusChanged(   CFNotificationCenterRef center, void * observer, 
-                                    CFStringRef name, void const * object, CFDictionaryRef userInfo) 
+
+static void displayStatusChanged(   
+    CFNotificationCenterRef center, void * observer, 
+    CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
     if(isTweakEnabled && !isInSOSMode) {
         dispatch_async(
@@ -494,8 +386,9 @@ static void displayStatusChanged(   CFNotificationCenterRef center, void * obser
     }
 }
 
-static void lockstateChanged(   CFNotificationCenterRef center, void * observer, 
-                                CFStringRef name, void const * object, CFDictionaryRef userInfo)
+static void lockstateChanged(   
+    CFNotificationCenterRef center, void * observer, 
+    CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
     if(isTweakEnabled)
         dispatch_async(
@@ -522,17 +415,85 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
         );
 }
 
-@interface SBSOSLockGestureObserver
-- (void)pressSequenceRecognizerDidCompleteSequence:(id)arg1 ;
-@end
 
-%hook SBSOSLockGestureObserver
-- (void)pressSequenceRecognizerDidCompleteSequence:(id)arg1
+
+
+static void passBySettingsChanged(
+    CFNotificationCenterRef center, void * observer, 
+    CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
-    %orig;
-    isInSOSMode = disableInSOSMode;
+    NSDictionary * passByDict =   [   [NSDictionary alloc] 
+                                        initWithContentsOfFile:@PLIST_PATH
+                                    ]?: [NSDictionary new];
+
+    isTweakEnabled          =   [[passByDict valueForKey:@"isEnabled"]              ?:@NO boolValue];
+    disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
+    use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
+    showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
+
+    useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO boolValue];
+    gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0) intValue];
+
+    useGracePeriodOnWiFi    =   [[passByDict valueForKey:@"useGracePeriodOnWiFi"]   ?:@NO boolValue];
+    gracePeriodOnWiFi       =   [[passByDict valueForKey:@"gracePeriodOnWiFi"]      ?:@(0) intValue];
+
+    headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO boolValue];
+
+    dismissLS               =   [[passByDict valueForKey:@"dismissLS"]              ?:@NO boolValue];
+    dismissLSWithMedia      =   [[passByDict valueForKey:@"dismissLSWithMedia"]     ?:@NO boolValue];
+
+    timeShift               =   [[passByDict valueForKey:@"timeShift"]              ?:@(0) intValue];
+    isSixDigitPasscode      =   [[passByDict valueForKey:@"isSixDigitPasscode"]     ?:@YES boolValue];
+    useMagicPasscode        =   [[passByDict valueForKey:@"useMagicPasscode"]       ?:@NO boolValue];
+
+
+    parseDigitsConfiguration(&first,
+        [passByDict valueForKey:@"firstTwoCustomDigits"]    ?:@"00",
+        [[passByDict valueForKey:@"firstTwo"]               ?:@(7) intValue],
+        [[passByDict valueForKey:@"firstTwoReversed"]       ?:@NO boolValue]
+    );
+    parseDigitsConfiguration(&second,
+        [passByDict valueForKey:@"secondTwoCustomDigits"]   ?:@"00",
+        [[passByDict valueForKey:@"secondTwo"]              ?:@(7) intValue],
+        [[passByDict valueForKey:@"secondTwoReversed"]      ?:@NO boolValue]
+    );
+    parseDigitsConfiguration(&last,
+        [passByDict valueForKey:@"lastTwoCustomDigits"]     ?:@"00",
+        [[passByDict valueForKey:@"lastTwo"]                ?:@(7) intValue],
+        [[passByDict valueForKey:@"lastTwoReversed"]        ?:@NO boolValue]
+    );
+
+    if ([[passByDict valueForKey:@"gracePeriodUnit"] ?:@"m" characterAtIndex:0] == 'm')
+        gracePeriod *= 60;
+    
+    if ([[passByDict valueForKey:@"gracePeriodUnitOnWiFi"] ?:@"m" characterAtIndex:0] == 'm')
+        gracePeriodOnWiFi *= 60;
+
+    if ([[passByDict valueForKey:@"timeShiftDirection"] ?:@"+" characterAtIndex:0] == '-')
+        timeShift = -timeShift;
+
+    [passByDict release];    
 }
-%end
+
+static void passByWiFiListChanged(
+    CFNotificationCenterRef center, void * observer, 
+    CFStringRef name, void const * object, CFDictionaryRef userInfo)
+{
+    NSDictionary * WiFiListDict =   [   [NSDictionary alloc] 
+                                        initWithContentsOfFile:@WIFI_PLIST_PATH
+                                    ]?: [NSDictionary new];
+
+    NSMutableArray * WiFiListArr = [[NSMutableArray alloc] initWithCapacity:[WiFiListDict count]];
+
+    for(NSString * key in [WiFiListDict keyEnumerator])
+        if([[WiFiListDict valueForKey:key] boolValue])
+            [WiFiListArr addObject:[key copy]];
+    
+    [WiFiListDict release];
+    [allowedSSIDs release];
+    allowedSSIDs = [[NSArray alloc] initWithArray:WiFiListArr copyItems:NO];
+    [WiFiListArr release];
+}
 
 %ctor 
 {
