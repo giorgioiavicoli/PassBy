@@ -1,4 +1,5 @@
 #import <notify.h>
+#import <MessageUI/MessageUI.h>
 #include "PassByRootListController.h"
 
 #define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
@@ -50,11 +51,21 @@
 
 -(void)sendFeedback:(id)arg1 
 {
-    [   [UIApplication sharedApplication] 
-        openURL:[NSURL URLWithString:@"mailto:giorgio.iavicoli@icloud.com?subject=Feedback%%20on%%20PassBy"]
-        options:[NSDictionary dictionary]
-        completionHandler:^(BOOL success){}
-    ];
+    if ([MFMailComposeViewController canSendMail]) {
+        MFMailComposeViewController * mailComposeVC = [[MFMailComposeViewController alloc] init];
+        mailComposeVC.mailComposeDelegate = self;
+        
+        [mailComposeVC setToRecipients:@[@"giorgio.iavicoli@icloud.com"]];
+        [mailComposeVC setSubject:@"Feedback on PassBy"];
+    
+        [self presentViewController:mailComposeVC animated:YES completion:nil];
+    }
+}
+
+- (void)mailComposeController:(MFMailComposeViewController *)controller
+        didFinishWithResult:(MFMailComposeResult)result error:(NSError *)error 
+{
+   [self dismissViewControllerAnimated:YES completion:nil];
 }
 
 @end

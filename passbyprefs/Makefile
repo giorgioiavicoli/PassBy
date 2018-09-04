@@ -3,7 +3,7 @@ include $(THEOS)/makefiles/common.mk
 BUNDLE_NAME = PassByPrefs
 PassByPrefs_FILES = PassByRootListController.m
 PassByPrefs_INSTALL_PATH = /Library/PreferenceBundles
-PassByPrefs_FRAMEWORKS = UIKit
+PassByPrefs_FRAMEWORKS = UIKit Message
 PassByPrefs_PRIVATE_FRAMEWORKS = Preferences MobileWiFi
 
 LDFLAGS = -F /Users/giorgioiavicoli/theos/sdks/iPhoneOS11.2.sdk/System/Library/PrivateFrameworks
