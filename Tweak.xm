@@ -28,19 +28,8 @@ static int  gracePeriodOnWiFi;
 static int  digitsGracePeriod;
 static int  timeShift;
 
-typedef enum : int {
-        CUSTOM = 0,
-        TIME_H, TIME_M,
-        DATE_D, DATE_M,
-        BATT_R, BATT_U,
-        GRACE_PERIOD
-} DigitsConfig;
-
-struct Digits {
-    DigitsConfig configuration;
-    char digit0, digit1;
-    BOOL reversed;
-} first, second, last;
+#include "PassByHelper.h"
+struct Digits first, second, last;
 
 static NSDate   *   lastUnlock          = nil;
 static NSDate   *   gracePeriodWiFiEnds = nil;
@@ -56,8 +45,6 @@ static uint64_t     lastLockstate       = 3;
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
 BOOL        passcodeChecksOut(NSString * passcode);
-NSString *  stringFromDateAndFormat(NSDate * date, NSString * format);
-NSString *  SHA1(NSString * str);
 BOOL        isUsingHeadphones();
 BOOL        isUsingWiFi();
 
@@ -137,9 +124,9 @@ static void unlockedWithSecondary()
         ^{
             updateLastUnlock();
 
-            if (first.configuration == GRACE_PERIOD
-            || second.configuration == GRACE_PERIOD
-            || (isSixDigitPasscode && last.configuration == GRACE_PERIOD)
+            if (first.isGracePeriod
+            || second.isGracePeriod
+            || (isSixDigitPasscode && last.isGracePeriod)
             ) {
                 unlockedWithTimeout = YES;
                 if (digitsGracePeriod) {
@@ -273,100 +260,11 @@ static void unlockedWithSecondary()
 }
 %end
 
-BOOL digitsCheckOut(struct Digits d, char d0, char d1)
-{
-    if(d.reversed) {
-        char tmp = d0;
-        d0 = d1;
-        d1 = tmp;
-    }
-    @autoreleasepool {
-        switch(d.configuration) {
-            case CUSTOM:
-                return d0 == d.digit0 
-                    && d1 == d.digit1;
-            case TIME_H: {
-                NSString * date = stringFromDateAndFormat
-                    (   [[NSDate date] 
-                            dateByAddingTimeInterval:timeShift * 60], 
-                        use24hFormat ? @"HH" : @"hh"
-                    );
-                return d0 == [date characterAtIndex:0] 
-                    && d1 == [date characterAtIndex:1];
-            }
-            case TIME_M: {
-                NSString * date = stringFromDateAndFormat
-                    ([[NSDate date] dateByAddingTimeInterval:timeShift * 60], @"mm");
-                return d0 == [date characterAtIndex:0] 
-                    && d1 == [date characterAtIndex:1];
-            }
-            case DATE_M: {
-                NSString * date = stringFromDateAndFormat
-                    ([[NSDate date] dateByAddingTimeInterval:timeShift * 60], @"MM");
-                return d0 == [date characterAtIndex:0] 
-                    && d1 == [date characterAtIndex:1];
-            }
-            case DATE_D: {
-                NSString * date = stringFromDateAndFormat
-                    ([[NSDate date] dateByAddingTimeInterval:timeShift * 60], @"dd");
-                return d0 == [date characterAtIndex:0] 
-                    && d1 == [date characterAtIndex:1];
-            }
-            case BATT_R: {
-                int level = (int) ([[UIDevice currentDevice] batteryLevel] * 100.0f);
-                return d0 == '0' + ((level / 10) % 10)
-                    && d1 == '0' + (level % 10);
-            }
-            case BATT_U: {
-                int level = 100 - (int) ([[UIDevice currentDevice] batteryLevel] * 100.0f);
-                return d0 == '0' + ((level / 10) % 10)
-                    && d1 == '0' + (level % 10);
-            }
-            case GRACE_PERIOD: {
-                digitsGracePeriod = (d0 - '0') * 60 + (d1 - '0') * 10;
-                return YES;
-            }
-        }
-    }
-    return NO;
-}
-
 BOOL passcodeChecksOut(NSString * passcode) 
 {
-    return digitsCheckOut(first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
-        && digitsCheckOut(second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
-        && (!isSixDigitPasscode || digitsCheckOut(last, [passcode characterAtIndex:4], [passcode characterAtIndex:5]));
-}
-
-NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
-{
-    NSDateFormatter *formatter = [NSDateFormatter new];
-    [formatter setLocale:[NSLocale currentLocale]];
-    [formatter setTimeStyle:NSDateFormatterShortStyle];
-    [formatter setDateFormat:format];
-    
-    NSString * string = [formatter stringFromDate:date];
-    [formatter release];
-    return string;
-}
-
-NSString * SHA1(NSString * str)
-{
-    NSMutableData * hashData = [[NSMutableData alloc] initWithLength:CC_SHA1_DIGEST_LENGTH];
-    NSData * data = [str dataUsingEncoding:NSUTF8StringEncoding];
-
-    unsigned char * hashBytes = (unsigned char *)[hashData mutableBytes];
-
-    if (CC_SHA1([data bytes], [data length], hashBytes)) {
-        NSUInteger len  = [hashData length];
-        NSMutableString * hash  = [NSMutableString stringWithCapacity:(len * 2)];
-        
-        for (int i = 0; i < len; ++i)
-            [hash appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)hashBytes[i]]];
-        
-        return [NSString stringWithString:hash];
-    }
-    return nil;
+    return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
+        && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
+        && (!isSixDigitPasscode || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5]));
 }
 
 @interface VolumeControl
@@ -386,42 +284,37 @@ BOOL isUsingWiFi()
         && allowedSSIDs && [allowedSSIDs containsObject:SHA1(SSID)];
 }
 
-DigitsConfig parseDigitsConfiguration(NSString *str)
+void parseDigitsConfiguration(struct Digits * digits, NSString * str)
 {
-    if(!str || [str length] != 2)
-        return CUSTOM;
-    
-    char c0 = [str characterAtIndex:0];
-    char c1 = [str characterAtIndex:1];
-    switch(c0) {
-        case 't':
+    if(!str || [str length] != 2) {
+        digits->eval = evalCustom;
+    } else {
+        char c0 = [str characterAtIndex:0];
+        char c1 = [str characterAtIndex:1];
+
+        if(c0 == 't') {
             if(c1 == 'h')
-                return TIME_H;
-            if(c1 == 'm')
-                return TIME_M;
-            break;
-        case 'd':
+                digits->eval = evalTimeH;
+            else if(c1 == 'm')
+                digits->eval = evalTimeM;
+        } else if(c0 == 'd') {
             if(c1 == 'd')
-                return DATE_D;
-            if(c1 == 'm')
-                return DATE_M;
-            break;
-        case 'b':
+                digits->eval = evalDateD;
+            else if(c1 == 'm')
+                digits->eval = evalDateM;
+        } else if(c0 == 'b') {
             if(c1 == 'r')
-                return BATT_R;
-            if(c1 == 'u')
-                return BATT_U;
-            break;
-        case 'c':
-            if(c1 == 'd')
-                return CUSTOM;
-            break;
-        case 'g':
-            if(c1 == 'p')
-                return GRACE_PERIOD;
-            break;
+                digits->eval = evalBattR;
+            else if(c1 == 'u')
+                digits->eval = evalBattU;
+        } else if(c0 == 'c' && c1 == 'd') {
+            digits->eval = evalCustom;
+        } else if(c0 == 'g' && c1 == 'p') {
+            digits->eval = evalGraceP;
+        } else {
+            digits->eval = evalCustom;
+        }
     }
-    return CUSTOM;
 }
 
 
@@ -460,7 +353,7 @@ static void passBySettingsChanged(CFNotificationCenterRef center, void * observe
     } else {
         first.digit1 = first.digit0 = '0';
     }
-    first.configuration     =   parseDigitsConfiguration([passByDict valueForKey:@"firstTwo"] ?:@"cd");
+    parseDigitsConfiguration(&first, [passByDict valueForKey:@"firstTwo"] ?:@"cd");
     first.reversed          =   [[passByDict valueForKey:@"firstTwoReversed"]       ?:@NO boolValue];
 
     digits                  =   [passByDict valueForKey:@"secondTwoCustomDigits"]   ?:@"00";
@@ -470,7 +363,7 @@ static void passBySettingsChanged(CFNotificationCenterRef center, void * observe
     } else {
         second.digit1 = second.digit0 = '0';
     }
-    second.configuration    =   parseDigitsConfiguration([passByDict valueForKey:@"secondTwo"] ?:@"cd");
+    parseDigitsConfiguration(&second, [passByDict valueForKey:@"secondTwo"] ?:@"cd");
     second.reversed         =   [[passByDict valueForKey:@"secondTwoReversed"]      ?:@NO boolValue];
 
     digits                  =   [passByDict valueForKey:@"lastTwoCustomDigits"]     ?:@"00";
@@ -480,7 +373,7 @@ static void passBySettingsChanged(CFNotificationCenterRef center, void * observe
     } else {
         last.digit1 = last.digit0 = '0';
     }
-    last.configuration      =   parseDigitsConfiguration([passByDict valueForKey:@"lastTwo"] ?:@"cd");
+    parseDigitsConfiguration(&last, [passByDict valueForKey:@"lastTwo"] ?:@"cd");
     last.reversed           =   [[passByDict valueForKey:@"lastTwoReversed"]        ?:@NO boolValue];
 
 
