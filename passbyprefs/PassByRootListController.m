@@ -1,8 +1,8 @@
 #import <notify.h>
 #include "PassByRootListController.h"
 
-#define PLIST_PATH      "/var/mobile/Library/Preferences/com.zer0g.passby.plist"
-#define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.zer0g.passbynets.plist"
+#define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
+#define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
 
 
 @implementation PassByRootListController
@@ -38,7 +38,7 @@
     ];
     [settings writeToFile:@(PLIST_PATH) atomically:YES];
     [settings release];
-	notify_post("com.zer0g.passby/reload");
+	notify_post("com.giorgioiavicoli.passby/reload");
 }
 
 -(void)resetSettings:(id)arg1 
@@ -46,11 +46,6 @@
     [@{} writeToFile:@PLIST_PATH        atomically:YES];
     [@{} writeToFile:@WIFI_PLIST_PATH   atomically:YES];
     [self reloadSpecifiers];
-}
-
--(void)passcodeChanged:(id)arg1 
-{
-    notify_post("com.zer0g.passby/code");
 }
 
 @end
@@ -116,7 +111,19 @@
     ];
     [settings writeToFile:@(WIFI_PLIST_PATH) atomically:YES];
     [settings release];
-    notify_post("com.zer0g.passby/wifi");
+    notify_post("com.giorgioiavicoli.passby/wifi");
+}
+@end
+
+@implementation PassByHelpListController
+- (NSArray *)specifiers 
+{
+	if (!_specifiers)
+		_specifiers =   [   [self   loadSpecifiersFromPlistName:@"Help" 
+                                    target:self
+                            ] retain
+                        ];
+	return _specifiers;
 }
 @end
 

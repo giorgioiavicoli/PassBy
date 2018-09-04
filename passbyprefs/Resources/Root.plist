@@ -5,12 +5,20 @@
 	<key>title</key>
 	<string>PassBy</string>
 	<key>items</key>
-	<array>		
+	<array>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>No options require respring!</string>
+			<string>No options require to respring!</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>detail</key>
+   			<string>PassByHelpListController</string>
+			<key>label</key>
+			<string>Help</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -24,7 +32,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>isEnabled</string>
 			<key>label</key>
@@ -36,11 +44,11 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
-			<string>use24hFormat</string>
+			<string>disableInSOSMode</string>
 			<key>label</key>
-			<string>Use 24h format</string>
+			<string>Disable in SOS mode</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -48,11 +56,35 @@
 			<key>default</key>
 			<true/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>isSixDigitPasscode</string>
+			<key>label</key>
+			<string>Passcode is 6-digit</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>showLastUnlock</string>
 			<key>label</key>
 			<string>Show last time unlocked</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>use24hFormat</string>
+			<key>label</key>
+			<string>Use 24h format</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -66,7 +98,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>useGracePeriod</string>
 			<key>label</key>
@@ -76,7 +108,7 @@
 			<key>cell</key>
 			<string>PSEditTextCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
@@ -92,7 +124,7 @@
 			<key>cell</key>
 			<string>PSSegmentCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>gracePeriodUnit</string>
 			<key>label</key>
@@ -114,23 +146,23 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>useGracePeriodOnWiFi</string>
 			<key>label</key>
-			<string>Use WiFi auto-unlock</string>
+			<string>Use Wi-Fi auto-unlock</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSEditTextCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
 			<string>gracePeriodOnWiFi</string>
 			<key>label</key>
-			<string>Timeout on WiFi</string>
+			<string>Timeout on Wi-Fi</string>
 			<key>placeholder</key>
 			<string>0 = always require passcode</string>
 			<key>isNumeric</key>
@@ -140,7 +172,7 @@
 			<key>cell</key>
 			<string>PSSegmentCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>gracePeriodUnitOnWifi</string>
 			<key>label</key>
@@ -160,9 +192,9 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>label</key>
-			<string>Enabled WiFi networks list</string>
+			<string>Enabled Wi-Fi networks list</string>
 			<key>detail</key>
-			<string>TPWiFiListController</string>
+			<string>PassByWiFiListController</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -170,7 +202,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>headphonesAutoUnlock</string>
 			<key>label</key>
@@ -182,7 +214,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>dismissLS</string>
 			<key>label</key>
@@ -194,7 +226,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>dismissLSWithMedia</string>
 			<key>label</key>
@@ -204,59 +236,25 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Custom passcode options</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSEditTextCell</string>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
-			<key>detail</key>
-			<string>PSDetailController</string>
-			<key>key</key>
-			<string>timeShift</string>
-			<key>label</key>
-			<string>Time Shift</string>
-			<key>placeholder</key>
-			<string>Minutes to add/subtract</string>
-			<key>isNumeric</key>
-			<true/>
-		</dict>		
-		<dict>
-			<key>cell</key>
-			<string>PSSegmentCell</string>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
-			<key>key</key>
-			<string>timeShiftDirection</string>
-			<key>validTitles</key>
-			<array>
-				<string>Add</string>
-				<string>Subtract</string>
-			</array>
-			<key>validValues</key>
-			<array>
-				<string>+</string>
-				<string>-</string>
-			</array>
+			<string>Magic passcode options</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<true/>
+			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
-			<string>isSixDigitPasscode</string>
+			<string>useMagicPasscode</string>
 			<key>label</key>
-			<string>6-digit passcode</string>
+			<string>Use magic passcode</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSLinkListCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>detail</key>
 			<string>PSListItemsController</string>
 			<key>key</key>
@@ -290,7 +288,7 @@
 			<key>cell</key>
 			<string>PSEditTextCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
@@ -308,7 +306,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>firstTwoReversed</string>
 			<key>label</key>
@@ -318,7 +316,7 @@
 			<key>cell</key>
 			<string>PSLinkListCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>detail</key>
 			<string>PSListItemsController</string>
 			<key>key</key>
@@ -352,7 +350,7 @@
 			<key>cell</key>
 			<string>PSEditTextCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
@@ -370,7 +368,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>secondTwoReversed</string>
 			<key>label</key>
@@ -380,7 +378,7 @@
 			<key>cell</key>
 			<string>PSLinkListCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>detail</key>
 			<string>PSListItemsController</string>
 			<key>key</key>
@@ -414,7 +412,7 @@
 			<key>cell</key>
 			<string>PSEditTextCell</string>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
@@ -432,7 +430,7 @@
 			<key>default</key>
 			<false/>
 			<key>defaults</key>
-			<string>com.giorgioiavicoli.timepass</string>
+			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
 			<string>lastTwoReversed</string>
 			<key>label</key>
@@ -440,17 +438,43 @@
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSGroupCell</string>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>timeShift</string>
 			<key>label</key>
-			<string>Reset</string>
+			<string>Time Shift</string>
+			<key>placeholder</key>
+			<string>Minutes to add/subtract</string>
+			<key>isNumeric</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSButtonCell</string>
+			<string>PSSegmentCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>timeShiftDirection</string>
+			<key>validTitles</key>
+			<array>
+				<string>Add</string>
+				<string>Subtract</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>+</string>
+				<string>-</string>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Passcode changed</string>
-			<key>action</key>
-			<string>passcodeChanged:</string>
+			<string>Reset</string>
 		</dict>
 		<dict>
 			<key>cell</key>

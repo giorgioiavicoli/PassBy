@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>title</key>
+	<string>Help</string>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Enable</string>
+			<key>footerText</key>
+			<string>Enables or disables all features of this tweak</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Disable in SOS mode</string>
+			<key>footerText</key>
+			<string>Whether to disable auto-unlock and magic passcode when SOS mode is invoked (by pressing 5 times the lock button, which by default also disables Touch ID)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Passcode is 6-digit</string>
+			<key>footerText</key>
+			<string>Disable if using a 4-digit passcode</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Show last time unlocked</string>
+			<key>footerText</key>
+			<string>Replaces title in passcode view with the last time the device was unlocked</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Use 24h format</string>
+			<key>footerText</key>
+			<string>Applies to last time unlocked and magic passcode</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Use auto-unlock</string>
+			<key>footerText</key>
+			<string>Bypasses the passcode lock when the device was unlocked within a certain period</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Use Wi-Fi auto-unlock</string>
+			<key>footerText</key>
+			<string>Bypasses the passcode lock within a certain period when connected to specific Wi-Fi networks (prior to locking)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Auto-unlock when using headphones</string>
+			<key>footerText</key>
+			<string>Bypasses the passcode lock when headphones are connected (prior to locking)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Dismiss lockscreen if no notifications</string>
+			<key>footerText</key>
+			<string>Skip the lockscreen when auto-unlocking if no notifications are showing</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Even when media controls are showing</string>
+			<key>footerText</key>
+			<string>Skip the lockscreen when auto-unlocking even if the media control are showing</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Use magic passcode</string>
+			<key>footerText</key>
+			<string>Gives the ability to unlock the device with a secondary passcode. If unlocked with this code, the auto-unlock feature will temporarily be disabled.
+
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Digits configuration</string>
+			<key>footerText</key>
+			<string>Use values from different sources: time, date, battery, timeout, or custom digits</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Battery Remaining</string>
+			<key>footerText</key>
+			<string>Current battery percentage (00 for 100%)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Battery Used</string>
+			<key>footerText</key>
+			<string>100 - current percentage, (for example 32 if battery is at 68%)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Timeout</string>
+			<key>footerText</key>
+			<string>This will make the device lock again after the time specified by the passcode digits, where the first digit is in minutes and the second one is in tens of seconds (for example 12 will lock the device again after 1 minute and 20 seconds)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Reverse</string>
+			<key>footerText</key>
+			<string>Swap the digit pair, on all options</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Reset</string>
+			<key>footerText</key>
+			<string>Resets all options to default</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+	</array>
+</dict>
+</plist>

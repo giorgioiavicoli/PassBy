@@ -7,6 +7,9 @@
 @interface PassByWiFiListController : PSListController
 @end
 
+@interface PassByHelpListController : PSListController
+@end
+
 typedef struct __WiFiNetwork* WiFiNetworkRef;
 typedef struct __WiFiManager* WiFiManagerRef;
 

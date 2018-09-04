@@ -4,9 +4,11 @@
 #import <notify.h>
 
 static BOOL isTweakEnabled;
+static BOOL disableInSOSMode;
 static BOOL use24hFormat;
 
 static BOOL isSixDigitPasscode;
+static BOOL useMagicPasscode;
 
 static BOOL useGracePeriod;
 static BOOL useGracePeriodOnWiFi;
@@ -19,6 +21,7 @@ static BOOL dismissLSWithMedia;
 static BOOL NCHasContent;
 static BOOL unlockedWithTimeout;
 static BOOL wasUsingHeadphones;
+static BOOL isInSOSMode;
 
 static int  gracePeriod;
 static int  gracePeriodOnWiFi;
@@ -40,6 +43,7 @@ struct Digits {
 } first, second, last;
 
 static NSDate   *   lastUnlock          = nil;
+static NSDate   *   gracePeriodWiFiEnds = nil;
 static NSDate   *   gracePeriodEnds     = nil;
 static NSTimer  *   graceTimeoutTimer   = nil;
 static NSArray  *   allowedSSIDs        = nil;
@@ -47,14 +51,15 @@ static NSArray  *   allowedSSIDs        = nil;
 static NSString *   truePasscode        = nil;
 static uint64_t     lastLockstate       = 3;
 
-#define PLIST_PATH                  "/var/mobile/Library/Preferences/com.zer0g.passby.plist"
-#define WIFI_PLIST_PATH             "/var/mobile/Library/Preferences/com.zer0g.passbynets.plist"
+#define PLIST_PATH                  "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
+#define WIFI_PLIST_PATH             "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
 BOOL        passcodeChecksOut(NSString * passcode);
 NSString *  stringFromDateAndFormat(NSDate * date, NSString * format);
 NSString *  SHA1(NSString * str);
 BOOL        isUsingHeadphones();
+BOOL        isUsingWiFi();
 
 
 static void updateLastUnlock()
@@ -63,19 +68,22 @@ static void updateLastUnlock()
     lastUnlock = [NSDate new];
 }
 
-static void updateGracePeriod()
+static void updateGracePeriods()
 {
     [gracePeriodEnds release];
+    [gracePeriodWiFiEnds release];
 
-    NSString * SSID = ((NSDictionary *)CNCopyCurrentNetworkInfo(CFSTR("en0"))) [@"SSID"];
+    gracePeriodWiFiEnds = 
+        useGracePeriodOnWiFi && isUsingWiFi()
+            ? [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnWiFi] retain]
+            : nil;
 
-    if (SSID && [SSID length] && useGracePeriodOnWiFi 
-    && allowedSSIDs && [allowedSSIDs containsObject:SHA1(SSID)])
-        gracePeriodEnds = [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnWiFi] retain];
-    else if (useGracePeriod)
-        gracePeriodEnds = [[[NSDate new] dateByAddingTimeInterval: gracePeriod] retain];
-    else
-        gracePeriodEnds = nil;
+    gracePeriodEnds = 
+        useGracePeriod 
+            ? [[[NSDate new] dateByAddingTimeInterval: gracePeriod] retain]
+            : nil;
+    
+    wasUsingHeadphones = isUsingHeadphones();
 }
 
 
@@ -103,10 +111,11 @@ static void updateGracePeriod()
     if (!isTweakEnabled 
     || !passcode 
     || [passcode length] != (isSixDigitPasscode ? 6 : 4)
+    || (!useMagicPasscode && truePasscode)
     ) {
         %orig;
     } else if (truePasscode && [truePasscode length]) {
-        if (passcodeChecksOut(passcode)) {
+        if (!isInSOSMode && passcodeChecksOut(passcode)) {
             %orig(truePasscode, arg2);
             if (first.configuration == GRACE_PERIOD
             || second.configuration == GRACE_PERIOD
@@ -130,10 +139,12 @@ static void updateGracePeriod()
             }
         } else {
             %orig;
-            if (![self isUILocked] 
-            && ![passcode isEqualToString:truePasscode]) {
-                [truePasscode release];
-                truePasscode = [passcode copy];
+            if (![self isUILocked]) {
+                isInSOSMode = NO;
+                if (![passcode isEqualToString:truePasscode]) {
+                    [truePasscode release];
+                    truePasscode = [passcode copy];
+                }
             }
         }
     } else {
@@ -174,7 +185,7 @@ static void updateGracePeriod()
 {
     if(isTweakEnabled) {
         if (!truePasscode) {
-            UILabel *label = MSHookIvar<UILabel *>(self, "_statusTitleView");
+            UILabel * label = MSHookIvar<UILabel *>(self, "_statusTitleView");
             label.text = @"PassBy requires passcode";
             return label;
         } else if (showLastUnlock && lastUnlock) {
@@ -231,12 +242,12 @@ BOOL digitsCheckOut(struct Digits d, char d0, char d1)
             }
             case BATT_R: {
                 int level = (int) ([[UIDevice currentDevice] batteryLevel] * 100.0f);
-                return d0 == '0' + (level / 10) 
+                return d0 == '0' + ((level / 10) % 10)
                     && d1 == '0' + (level % 10);
             }
             case BATT_U: {
                 int level = 100 - (int) ([[UIDevice currentDevice] batteryLevel] * 100.0f);
-                return d0 == '0' + (level / 10) 
+                return d0 == '0' + ((level / 10) % 10)
                     && d1 == '0' + (level % 10);
             }
             case GRACE_PERIOD: {
@@ -296,6 +307,13 @@ BOOL isUsingHeadphones()
     return [[%c(VolumeControl) sharedVolumeControl] headphonesPresent];
 }
 
+BOOL isUsingWiFi()
+{
+    NSString * SSID = ((NSDictionary *)CNCopyCurrentNetworkInfo(CFSTR("en0"))) [@"SSID"];
+    return SSID && [SSID length] && useGracePeriodOnWiFi 
+        && allowedSSIDs && [allowedSSIDs containsObject:SHA1(SSID)];
+}
+
 DigitsConfig parseDigitsConfiguration(NSString *str)
 {
     if(!str || [str length] != 2)
@@ -343,8 +361,9 @@ static void passBySettingsChanged(CFNotificationCenterRef center, void * observe
                                     ]?: [NSDictionary new];
 
     isTweakEnabled          =   [[passByDict valueForKey:@"isEnabled"]              ?:@NO boolValue];
+    disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
     use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
-    showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@YES boolValue];
+    showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
 
     useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO boolValue];
     gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0) intValue];
@@ -359,6 +378,7 @@ static void passBySettingsChanged(CFNotificationCenterRef center, void * observe
 
     timeShift               =   [[passByDict valueForKey:@"timeShift"]              ?:@(0) intValue];
     isSixDigitPasscode      =   [[passByDict valueForKey:@"isSixDigitPasscode"]     ?:@YES boolValue];
+    useMagicPasscode        =   [[passByDict valueForKey:@"useMagicPasscode"]       ?:@NO boolValue];
 
     NSString * digits;
     digits                  =   [passByDict valueForKey:@"firstTwoCustomDigits"]    ?:@"00";
@@ -411,13 +431,6 @@ static void passByWiFiListChanged(CFNotificationCenterRef center, void * observe
     [WiFiListArr release];
 }
 
-static void passByCodeChanged(CFNotificationCenterRef center, void * observer, 
-                                CFStringRef name, void const * object, CFDictionaryRef userInfo)
-{
-    [truePasscode release];
-    truePasscode = nil;
-}
-
 @interface NCNotificationCombinedListViewController : UIViewController
 - (BOOL)hasContent;
 @end
@@ -450,36 +463,51 @@ uint64_t getState(char const * const name)
     return state;
 }
 
+BOOL isInGrace()
+{
+    if (gracePeriodEnds && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
+        return YES;
+
+    if (gracePeriodWiFiEnds) {
+        if (isUsingWiFi() && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending) {
+            return YES;
+        } else {
+            [gracePeriodWiFiEnds release];
+            gracePeriodWiFiEnds = nil;
+        }
+    }
+
+    if (headphonesAutoUnlock)
+        return (wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones());
+
+    return NO;
+}
+
 static void displayStatusChanged(   CFNotificationCenterRef center, void * observer, 
                                     CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
-    if(isTweakEnabled)
-        dispatch_after(
-            dispatch_time(DISPATCH_TIME_NOW, 10 * NSEC_PER_MSEC),
+    if(isTweakEnabled && !isInSOSMode) {
+        dispatch_async(
             dispatch_get_main_queue(),
             ^{
-                if (getState("com.apple.iokit.hid.displayStatus")) {
-                    wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones();
-                    if (truePasscode && [truePasscode length]
-                    &&  (   
-                            (gracePeriodEnds && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
-                            || (headphonesAutoUnlock && wasUsingHeadphones)
-                        ) 
-                    && [[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK
-                    ) {
-                        [   [%c(SBLockScreenManager) sharedInstance] 
-                            _attemptUnlockWithPasscode:truePasscode 
-                            finishUIUnlock: dismissLS 
-                                            && !NCHasContent 
-                                            && (dismissLSWithMedia || ![[   [%c(SBLockScreenManager) sharedInstance] 
-                                                                            lockScreenViewController
-                                                                        ] isShowingMediaControls])
-                                            && ![%c(SBAssistantController) isAssistantVisible]
-                        ];
-                    }
+                if (getState("com.apple.iokit.hid.displayStatus")
+                && truePasscode && [truePasscode length]
+                && isInGrace()
+                && ([[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
+                ) {
+                    [   [%c(SBLockScreenManager) sharedInstance] 
+                        _attemptUnlockWithPasscode:truePasscode 
+                        finishUIUnlock: dismissLS 
+                                        && !NCHasContent 
+                                        && (dismissLSWithMedia || ![[   [%c(SBLockScreenManager) sharedInstance] 
+                                                                        lockScreenViewController
+                                                                    ] isShowingMediaControls])
+                                        && ![%c(SBAssistantController) isAssistantVisible]
+                    ];
                 }
             }
         );
+    }
 }
 
 static void lockstateChanged(   CFNotificationCenterRef center, void * observer, 
@@ -498,12 +526,9 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
                         [graceTimeoutTimer invalidate];
                         graceTimeoutTimer = nil;
                     } else if(unlockedWithTimeout) {
-                        [gracePeriodEnds release];
-                        graceTimeoutTimer = nil;
                         wasUsingHeadphones = NO;
                     } else {
-                        updateGracePeriod();
-                        wasUsingHeadphones = isUsingHeadphones();
+                        updateGracePeriods();
                     }
                     unlockedWithTimeout = NO;
                 }
@@ -512,25 +537,32 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
         );
 }
 
+@interface SBSOSLockGestureObserver
+- (void)pressSequenceRecognizerDidCompleteSequence:(id)arg1 ;
+@end
+
+%hook SBSOSLockGestureObserver
+- (void)pressSequenceRecognizerDidCompleteSequence:(id)arg1
+{
+    %orig;
+    isInSOSMode = disableInSOSMode;
+}
+%end
+
 %ctor 
 {
 	CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         passBySettingsChanged,
-                                        CFSTR("com.zer0g.passby/reload"), NULL, 
+                                        CFSTR("com.giorgioiavicoli.passby/reload"), NULL, 
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
 
     CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         passByWiFiListChanged,
-                                        CFSTR("com.zer0g.passby/wifi"), NULL, 
+                                        CFSTR("com.giorgioiavicoli.passby/wifi"), NULL, 
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
-
-    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
-                                        passByCodeChanged,
-                                        CFSTR("com.zer0g.passby/code"), NULL, 
-                                        CFNotificationSuspensionBehaviorCoalesce
-                                    );
+                                    
 	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
 	dlopen("/System/Library/PrivateFrameworks/UserNotificationsUIKit.framework/UserNotificationsUIKit", RTLD_LAZY);
 
@@ -548,5 +580,7 @@ static void lockstateChanged(   CFNotificationCenterRef center, void * observer,
 
     passBySettingsChanged(NULL, NULL, NULL, NULL, NULL);
     passByWiFiListChanged(NULL, NULL, NULL, NULL, NULL);
+    unlockedWithTimeout = NO;
     wasUsingHeadphones  = NO;
+    isInSOSMode         = NO;
 }

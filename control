@@ -1,9 +1,9 @@
-Package: com.zer0g.passby
+Package: com.giorgioiavicoli.passby
 Name: PassBy
 Depends: mobilesubstrate
 Version: 1.0
 Architecture: iphoneos-arm
 Description: Bypass passcode in many ways
-Maintainer: zer0g
-Author: zer0g
+Maintainer: Giorgio Iavicoli
+Author: Giorgio Iavicoli
 Section: Tweaks
