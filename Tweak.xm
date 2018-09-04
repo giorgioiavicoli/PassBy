@@ -286,6 +286,7 @@ BOOL isUsingWiFi()
 
 void parseDigitsConfiguration(struct Digits * digits, NSString * str)
 {
+    digits->isGracePeriod = NO;
     if(!str || [str length] != 2) {
         digits->eval = evalCustom;
     } else {
@@ -311,7 +312,7 @@ void parseDigitsConfiguration(struct Digits * digits, NSString * str)
             digits->eval = evalCustom;
         } else if(c0 == 'g' && c1 == 'p') {
             digits->eval = evalGraceP;
-            digits->isGracePeriod = true;
+            digits->isGracePeriod = YES;
         } else {
             digits->eval = evalCustom;
         }
