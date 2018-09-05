@@ -73,12 +73,6 @@ static void savePasscodeToFile()
     [passcodeData release];
 }
 
-static void updateLastUnlock()
-{
-    [lastUnlock release];
-    lastUnlock = [NSDate new];
-}
-
 static void updateGracePeriods()
 {
     [gracePeriodEnds release];
@@ -106,7 +100,6 @@ static void unlockedWithPrimary(NSString * passcode)
     dispatch_async(
         dispatch_get_main_queue(),
         ^{
-            updateLastUnlock();
             isInSOSMode = NO;
             if (![passcode isEqualToString:truePasscode]) {
                 [truePasscode release];
@@ -123,8 +116,6 @@ static void unlockedWithPrimaryForFirstTime(NSString * passcode)
     dispatch_async(
         dispatch_get_main_queue(),
         ^{
-            updateLastUnlock();
-
             [truePasscode release];
             truePasscode = [passcode copy];
             if(savePasscode)
@@ -163,8 +154,6 @@ static void unlockedWithSecondary()
     dispatch_async(
         dispatch_get_main_queue(),
         ^{
-            updateLastUnlock();
-
             if (first.isGracePeriod
             || second.isGracePeriod
             || (isSixDigitPasscode && last.isGracePeriod)
@@ -255,8 +244,6 @@ static void unlockedWithSecondary()
     || (!useMagicPasscode && truePasscode)
     ) {
         %orig;
-        if (![self isUILocked])
-            updateLastUnlock();
     } else if (truePasscode && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)) {
         if (![truePasscode isEqualToString:passcode] && !isInSOSMode && passcodeChecksOut(passcode)) {
             %orig(truePasscode, arg2);
@@ -428,18 +415,21 @@ static void lockstateChanged(
             ^{
                 unsigned long long state = [[%c(SBLockStateAggregator) sharedInstance] lockState];
 
-                if((state & LOCKSTATE_NEEDSAUTH_MASK) 
-                && !(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK)
-                ) {
-                    if (graceTimeoutTimer) {
-                        [graceTimeoutTimer invalidate];
-                        graceTimeoutTimer = nil;
-                    } else if(unlockedWithTimeout) {
-                        wasUsingHeadphones = NO;
-                    } else {
-                        updateGracePeriods();
+                if((state & LOCKSTATE_NEEDSAUTH_MASK)) {
+                    if(!(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK)) {
+                        if (graceTimeoutTimer) {
+                            [graceTimeoutTimer invalidate];
+                            graceTimeoutTimer = nil;
+                        } else if(unlockedWithTimeout) {
+                            wasUsingHeadphones = NO;
+                        } else {
+                            updateGracePeriods();
+                        }
+                        unlockedWithTimeout = NO;
                     }
-                    unlockedWithTimeout = NO;
+                } else if (lastLockstate & LOCKSTATE_NEEDSAUTH_MASK) {
+                    [lastUnlock release];
+                    lastUnlock = [NSDate new];
                 }
 
                 lastLockstate = state;
