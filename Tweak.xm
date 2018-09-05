@@ -255,6 +255,8 @@ static void unlockedWithSecondary()
     || (!useMagicPasscode && truePasscode)
     ) {
         %orig;
+        if (![self isUILocked])
+            updateLastUnlock();
     } else if (truePasscode && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)) {
         if (![truePasscode isEqualToString:passcode] && !isInSOSMode && passcodeChecksOut(passcode)) {
             %orig(truePasscode, arg2);

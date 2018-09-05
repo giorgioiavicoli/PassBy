@@ -190,7 +190,7 @@
 			<key>label</key>
 			<string>Time Shift</string>
 			<key>footerText</key>
-			<string>Apply a mathematical operation to the time value used in a digit pair (for example, with time shift +30 minutes, at 9:41, the time after the shift would be 10:11 therefore the corresponding minute pair would be 11, and the hour one would be 10. This also applies to dates!</string>
+			<string>Apply a mathematical operation to the time value used in a digit pair (for example, with time shift +30 minutes, at 9:41, the time after the shift would be 10:11 therefore the corresponding minute pair would be 11, and the hour one would be 10. This also affects date rollover!</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
