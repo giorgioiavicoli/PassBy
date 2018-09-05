@@ -1,9 +1,11 @@
 #import <Foundation/Foundation.h>
 #import <SystemConfiguration/CaptiveNetwork.h>
-#import <CommonCrypto/CommonDigest.h>
 #import <notify.h>
 
+#include "crypto.h"
+
 static BOOL isTweakEnabled;
+static BOOL savePasscode;
 static BOOL disableInSOSMode;
 static BOOL use24hFormat;
 
@@ -38,6 +40,7 @@ static NSTimer  *   graceTimeoutTimer   = nil;
 static NSArray  *   allowedSSIDs        = nil;
 
 static NSString *   truePasscode        = nil;
+static NSData   *   UUID                = nil;
 static uint64_t     lastLockstate       = 3;
 
 #define PLIST_PATH                  "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
@@ -46,6 +49,29 @@ static uint64_t     lastLockstate       = 3;
 
 BOOL isUsingHeadphones();
 BOOL isUsingWiFi();
+
+static void savePasscodeToFile()
+{
+    NSMutableDictionary * passByDict =
+        [   [NSMutableDictionary alloc] 
+            initWithContentsOfFile:@PLIST_PATH
+        ]?: [NSMutableDictionary new];
+
+    NSData * passcodeData =
+        AES128Encrypt(
+            [truePasscode 
+                dataUsingEncoding:NSUTF8StringEncoding
+            ], UUID
+        );
+
+    [passByDict 
+        setObject:passcodeData
+        forKey:@"passcode"
+    ];
+    [passByDict writeToFile:@(PLIST_PATH) atomically:YES];
+    [passByDict release];
+    [passcodeData release];
+}
 
 static void updateLastUnlock()
 {
@@ -85,6 +111,8 @@ static void unlockedWithPrimary(NSString * passcode)
             if (![passcode isEqualToString:truePasscode]) {
                 [truePasscode release];
                 truePasscode = [passcode copy];
+                if (savePasscode)
+                    savePasscodeToFile();
             }
         }
     );
@@ -99,6 +127,8 @@ static void unlockedWithPrimaryForFirstTime(NSString * passcode)
 
             [truePasscode release];
             truePasscode = [passcode copy];
+            if(savePasscode)
+                savePasscodeToFile();
 
             UIAlertView *alert =    
                 [   [UIAlertView alloc]
@@ -195,7 +225,7 @@ static void unlockedWithSecondary()
     || (!useMagicPasscode && truePasscode)
     ) {
         %orig;
-    } else if (truePasscode && [truePasscode length]) {
+    } else if (truePasscode && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)) {
         if (![truePasscode isEqualToString:passcode] && !isInSOSMode && passcodeChecksOut(passcode)) {
             [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES];
             if (![SBLSManager isUILocked]) 
@@ -225,7 +255,7 @@ static void unlockedWithSecondary()
     || (!useMagicPasscode && truePasscode)
     ) {
         %orig;
-    } else if (truePasscode && [truePasscode length]) {
+    } else if (truePasscode && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)) {
         if (![truePasscode isEqualToString:passcode] && !isInSOSMode && passcodeChecksOut(passcode)) {
             %orig(truePasscode, arg2);
             if (![self isUILocked])
@@ -427,6 +457,7 @@ static void passBySettingsChanged(
                                     ]?: [NSDictionary new];
 
     isTweakEnabled          =   [[passByDict valueForKey:@"isEnabled"]              ?:@NO boolValue];
+    savePasscode            =   [[passByDict valueForKey:@"savePasscode"]           ?:@NO boolValue];
     disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
     use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
     showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
@@ -472,6 +503,20 @@ static void passBySettingsChanged(
     if ([[passByDict valueForKey:@"timeShiftDirection"] ?:@"+" characterAtIndex:0] == '-')
         timeShift = -timeShift;
 
+    NSData * passcodeData = [passByDict valueForKey:@"passcode"];
+
+    if (passcodeData) {
+        truePasscode = 
+            [   [NSString alloc] 
+                initWithData:AES128Decrypt(passcodeData, UUID)
+                encoding:NSUTF8StringEncoding
+            ];
+    } else if (savePasscode && truePasscode 
+    && [truePasscode length] == (isSixDigitPasscode ? 4 : 6)
+    ) {
+        savePasscodeToFile();
+    }
+
     [passByDict release];    
 }
 
@@ -495,15 +540,10 @@ static void passByWiFiListChanged(
     [WiFiListArr release];
 }
 
-%ctor 
-{
-    %init;
-    if(kCFCoreFoundationVersionNumber >= 1443.00)
-        %init(iOS11)
-    else
-        %init(iOS10)
 
-	CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
+static void setDarwinNCObservers()
+{
+    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         passBySettingsChanged,
                                         CFSTR("com.giorgioiavicoli.passby/reload"), NULL, 
                                         CFNotificationSuspensionBehaviorCoalesce
@@ -529,9 +569,34 @@ static void passByWiFiListChanged(
                                         CFSTR("com.apple.springboard.lockstate"), NULL, 
                                         0
                                     );
+}
+
+static void setUUID()
+{
+    unsigned char * buffer = (unsigned char *) malloc(16);
+    [   [[UIDevice currentDevice] identifierForVendor] 
+        getUUIDBytes:buffer
+    ];
+    UUID = [    [NSData alloc] 
+                initWithBytes:buffer length:16
+    ];
+    free(buffer);
+}
+
+%ctor 
+{
+    %init;
+    if(kCFCoreFoundationVersionNumber >= 1443.00)
+        %init(iOS11)
+    else
+        %init(iOS10)
+
+    setDarwinNCObservers();
+    setUUID();
 
     passBySettingsChanged(NULL, NULL, NULL, NULL, NULL);
     passByWiFiListChanged(NULL, NULL, NULL, NULL, NULL);
+
     unlockedWithTimeout = NO;
     wasUsingHeadphones  = NO;
     isInSOSMode         = NO;

@@ -20,6 +20,16 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>Do not require passcode after respring</string>
+			<key>footerText</key>
+			<string>Saves passcode so that you don't need to enter it once every respring. Your passcode will always be saved encrypted</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Disable in SOS mode</string>
 			<key>footerText</key>
 			<string>Whether to disable auto-unlock and magic passcode when SOS mode is invoked (by pressing 5 times the lock button, which by default also disables Touch ID)</string>
@@ -191,6 +201,16 @@
 			<string>Reset</string>
 			<key>footerText</key>
 			<string>Resets all options to default</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Send feedback</string>
+			<key>footerText</key>
+			<string>Composes an email to myself if mail app available</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>

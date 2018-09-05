@@ -33,6 +33,14 @@
         [   [NSMutableDictionary alloc] 
             initWithContentsOfFile:@PLIST_PATH
         ] ?:[NSMutableDictionary new];
+        
+    if([[specifier propertyForKey:@"key"] 
+        isEqualToString:@"savePasscode"]
+    && [value boolValue] == NO
+    ) {
+        [settings removeObjectForKey:@"passcode"];
+    }
+
     [settings 
         setObject:value 
         forKey:[specifier propertyForKey:@"key"]

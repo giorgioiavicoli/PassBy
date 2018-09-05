@@ -13,25 +13,6 @@ NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
     return string;
 }
 
-NSString * SHA1(NSString * str)
-{
-    NSMutableData * hashData = [[NSMutableData alloc] initWithLength:CC_SHA1_DIGEST_LENGTH];
-    NSData * data = [str dataUsingEncoding:NSUTF8StringEncoding];
-
-    unsigned char * hashBytes = (unsigned char *)[hashData mutableBytes];
-
-    if (CC_SHA1([data bytes], [data length], hashBytes)) {
-        NSUInteger len  = [hashData length];
-        NSMutableString * hash  = [NSMutableString stringWithCapacity:(len * 2)];
-        
-        for (int i = 0; i < len; ++i)
-            [hash appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)hashBytes[i]]];
-        
-        return [NSString stringWithString:hash];
-    }
-    return nil;
-}
-
 BOOL evalDateTimeHelper(NSString * format, char d0, char d1, BOOL reversed)
 {
     if(reversed) {
