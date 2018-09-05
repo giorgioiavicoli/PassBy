@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>title</key>
+	<string>Magic Passcode</string>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>firstTwo</string>
+			<key>label</key>
+			<string>First two digits</string>
+			<key>validTitles</key>
+			<array>
+				<string>Time: hours digits</string>
+				<string>Time: minutes digits</string>
+				<string>Date: day</string>
+				<string>Date: month</string>
+				<string>Battery: remaining</string>
+				<string>Battery: used</string>
+				<string>Timeout to lock</string>
+				<string>Custom digits</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>firstTwoCustomDigits</string>
+			<key>label</key>
+			<string>Custom Digits</string>
+			<key>placeholder</key>
+			<string>00</string>
+			<key>isNumeric</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>firstTwoReversed</string>
+			<key>label</key>
+			<string>Reverse first two digits</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>secondTwo</string>
+			<key>label</key>
+			<string>Second two digits</string>
+			<key>validTitles</key>
+			<array>
+				<string>Time: hours digits</string>
+				<string>Time: minutes digits</string>
+				<string>Date: day</string>
+				<string>Date: month</string>
+				<string>Battery: remaining</string>
+				<string>Battery: used</string>
+				<string>Timeout to lock</string>
+				<string>Custom digits</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>secondTwoCustomDigits</string>
+			<key>label</key>
+			<string>Custom Digits</string>
+			<key>placeholder</key>
+			<string>00</string>
+			<key>isNumeric</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>secondTwoReversed</string>
+			<key>label</key>
+			<string>Reverse second two digits</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>key</key>
+			<string>lastTwo</string>
+			<key>label</key>
+			<string>Last two digits</string>
+			<key>validTitles</key>
+			<array>
+				<string>Time: hours digits</string>
+				<string>Time: minutes digits</string>
+				<string>Date: day</string>
+				<string>Date: month</string>
+				<string>Battery: remaining</string>
+				<string>Battery: used</string>
+				<string>Timeout to lock</string>
+				<string>Custom digits</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+				<integer>6</integer>
+				<integer>7</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>lastTwoCustomDigits</string>
+			<key>label</key>
+			<string>Custom Digits</string>
+			<key>placeholder</key>
+			<string>00</string>
+			<key>isNumeric</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>lastTwoReversed</string>
+			<key>label</key>
+			<string>Reverse last two digits</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>timeShift</string>
+			<key>label</key>
+			<string>Time Shift</string>
+			<key>placeholder</key>
+			<string>Minutes to add/subtract</string>
+			<key>isNumeric</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>timeShiftDirection</string>
+			<key>validTitles</key>
+			<array>
+				<string>Add</string>
+				<string>Subtract</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>+</string>
+				<string>-</string>
+			</array>
+		</dict>
+    </array>
+</dict>
+</plist>

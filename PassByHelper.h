@@ -15,7 +15,7 @@ NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
 
 BOOL evalDateTimeHelper(NSString * format, char d0, char d1, BOOL reversed)
 {
-    if(reversed) {
+    if (reversed) {
         char tmp = d0;
         d0 = d1;
         d1 = tmp;
@@ -158,6 +158,39 @@ void parseDigitsConfiguration(struct Digits * digits,
             digits->eval = evalCustom;
             return;
     }
+}
+
+struct Time {
+    int hours, minutes;
+};
+
+BOOL parseTime(struct Time * time, NSString * timeString)
+{
+    char h0, h1, m0, m1;
+    if ([timeString length] == 4) {
+        h0 = '0';
+        h1 = [timeString characterAtIndex:0];
+        m0 = [timeString characterAtIndex:2];
+        m1 = [timeString characterAtIndex:3];
+    } else if ([timeString length] == 5) {
+        h0 = [timeString characterAtIndex:0];
+        h1 = [timeString characterAtIndex:1];
+        m0 = [timeString characterAtIndex:3];
+        m1 = [timeString characterAtIndex:4];
+    } else {
+        return NO;
+    }
+
+    if (h0 >= '0' && h0 <= '2'
+    && h1 >= '0' && h1 <= (h0 == 2 ? '3' : '9')
+    && m0 >= '0' && m0 <= '5' 
+    && m1 >= '0' && m1 <= '9'
+    ) {
+        time->hours     = (h0 - '0') * 10 + h1 - '0';
+        time->minutes   = (m0 - '0') * 10 + m1 - '0';
+        return YES;
+    }
+    return NO;
 }
 
 #endif // PASSBYHELPER_H

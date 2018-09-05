@@ -33,21 +33,33 @@
         [   [NSMutableDictionary alloc] 
             initWithContentsOfFile:@PLIST_PATH
         ] ?:[NSMutableDictionary new];
+
+    NSString * key = [specifier propertyForKey:@"key"];
         
-    if([[specifier propertyForKey:@"key"] 
-        isEqualToString:@"savePasscode"]
+    if ([key isEqualToString:@"savePasscode"]
     && [value boolValue] == NO
     ) {
         [settings removeObjectForKey:@"passcode"];
+    } else if ([key isEqualToString:@"disableFromTime"] 
+    || [key isEqualToString:@"disableToTime"]
+    ) {
+        int len = [value length];
+        if (len) {
+            if (len <= 2) {
+                value = [value mutableCopy];
+                [value appendString:@":00"];
+            } else if (len <= 4) {
+                value = [value mutableCopy];
+                [value insertString:@":" atIndex:len-2];
+            }
+        }
     }
 
-    [settings 
-        setObject:value 
-        forKey:[specifier propertyForKey:@"key"]
-    ];
+    [settings setObject:value forKey:key];
     [settings writeToFile:@(PLIST_PATH) atomically:YES];
     [settings release];
 	notify_post("com.giorgioiavicoli.passby/reload");
+    [self reloadSpecifiers];
 }
 
 -(void)resetSettings:(id)arg1 
@@ -78,6 +90,9 @@
 
 @end
 
+
+NSString * SHA1(NSString * str);
+
 @implementation PassByWiFiListController
 
 - (NSArray *)specifiers 
@@ -89,12 +104,12 @@
                                         ] ?: [NSDictionary new];
 
         WiFiManagerRef manager = WiFiManagerClientCreate(kCFAllocatorDefault, 0);
-        if(manager) {
+        if (manager) {
             NSArray * networks = (NSArray *) WiFiManagerClientCopyNetworks(manager);
-            if(networks) {
+            if (networks) {
                 for(id network in networks) {
                     NSString * name = (NSString *) WiFiNetworkGetSSID((WiFiNetworkRef)network);
-                    if(name) {
+                    if (name) {
                         PSSpecifier * specifier = [ PSSpecifier 
                                                         preferenceSpecifierNamed:name
                                                         target:self
@@ -143,15 +158,59 @@
 }
 @end
 
+
+
 @implementation PassByHelpListController
 - (NSArray *)specifiers 
 {
 	if (!_specifiers)
-		_specifiers =   [   [self   loadSpecifiersFromPlistName:@"Help" 
-                                    target:self
-                            ] retain
-                        ];
+		_specifiers =   
+            [   [self
+                    loadSpecifiersFromPlistName:@"Help" 
+                    target:self
+                ] retain
+            ];
 	return _specifiers;
+}
+@end
+
+@implementation PassByMagicPasscodeListController
+- (NSArray *)specifiers 
+{
+	if (!_specifiers)
+		_specifiers = 
+            [   
+                [self   
+                    loadSpecifiersFromPlistName:@"MagicPasscode" 
+                    target:self
+                ] retain
+            ];
+	return _specifiers;
+}
+
+- (id)readPreferenceValue:(PSSpecifier*)specifier 
+{
+    return  (   [   [[NSDictionary alloc]
+                    initWithContentsOfFile:@PLIST_PATH
+                    ] retain
+                ] [[specifier propertyForKey:@"key"]]
+            ) ?:[specifier properties][@"default"];
+}
+
+- (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier 
+{
+    NSMutableDictionary * settings =    
+        [   [NSMutableDictionary alloc] 
+            initWithContentsOfFile:@PLIST_PATH
+        ] ?:[NSMutableDictionary new];
+
+    [settings 
+        setObject:value 
+        forKey:[specifier propertyForKey:@"key"]
+    ];
+    [settings writeToFile:@(PLIST_PATH) atomically:YES];
+    [settings release];
+	notify_post("com.giorgioiavicoli.passby/reload");
 }
 @end
 

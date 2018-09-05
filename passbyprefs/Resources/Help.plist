@@ -30,16 +30,6 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Disable in SOS mode</string>
-			<key>footerText</key>
-			<string>Whether to disable auto-unlock and magic passcode when SOS mode is invoked (by pressing 5 times the lock button, which by default also disables Touch ID)</string>
-			<key>footerAlignment</key>
-			<integer>0</integer>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSGroupCell</string>
-			<key>label</key>
 			<string>Passcode is 6-digit</string>
 			<key>footerText</key>
 			<string>Disable if using a 4-digit passcode</string>
@@ -191,6 +181,36 @@
 			<string>Time Shift</string>
 			<key>footerText</key>
 			<string>Apply a mathematical operation to the time value used in a digit pair (for example, with time shift +30 minutes, at 9:41, the time after the shift would be 10:11 therefore the corresponding minute pair would be 11, and the hour one would be 10. This also affects date rollover!</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Disable in SOS mode</string>
+			<key>footerText</key>
+			<string>Whether to disable auto-unlock and magic passcode when SOS mode is invoked (by pressing 5 times the lock button, which by default also disables Touch ID/Face ID)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Disable during time interval</string>
+			<key>footerText</key>
+			<string>An interval of time during which auto-unlock and magic passcode will be disabled</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Also disable Touch ID/Face ID</string>
+			<key>footerText</key>
+			<string>Whether to disable Touch ID/Face ID as well during this time interval</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>

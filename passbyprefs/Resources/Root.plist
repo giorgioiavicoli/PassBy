@@ -58,18 +58,6 @@
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
-			<string>disableInSOSMode</string>
-			<key>label</key>
-			<string>Disable in SOS mode</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<true/>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
-			<key>key</key>
 			<string>isSixDigitPasscode</string>
 			<key>label</key>
 			<string>Passcode is 6-digit</string>
@@ -248,7 +236,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Magic passcode options</string>
+			<string>Magic Passcode options</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -260,57 +248,33 @@
 			<key>key</key>
 			<string>useMagicPasscode</string>
 			<key>label</key>
-			<string>Use magic passcode</string>
+			<string>Use Magic Passcode</string>
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSLinkListCell</string>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
+			<string>PSLinkCell</string>
 			<key>detail</key>
-			<string>PSListItemsController</string>
-			<key>key</key>
-			<string>firstTwo</string>
+   			<string>PassByMagicPasscodeListController</string>
 			<key>label</key>
-			<string>First two digits</string>
-			<key>validTitles</key>
-			<array>
-				<string>Time: hours digits</string>
-				<string>Time: minutes digits</string>
-				<string>Date: day</string>
-				<string>Date: month</string>
-				<string>Battery: remaining</string>
-				<string>Battery: used</string>
-				<string>Timeout to lock</string>
-				<string>Custom digits</string>
-			</array>
-			<key>validValues</key>
-			<array>
-				<integer>0</integer>
-				<integer>1</integer>
-				<integer>2</integer>
-				<integer>3</integer>
-				<integer>4</integer>
-				<integer>5</integer>
-				<integer>6</integer>
-				<integer>7</integer>
-			</array>
+			<string>Magic Passcode configuration</string>
 		</dict>
 		<dict>
 			<key>cell</key>
-			<string>PSEditTextCell</string>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
-			<key>detail</key>
-			<string>PSDetailController</string>
-			<key>key</key>
-			<string>firstTwoCustomDigits</string>
+			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Custom Digits</string>
-			<key>placeholder</key>
-			<string>00</string>
-			<key>isNumeric</key>
+			<string>Disable options</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
 			<true/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>disableInSOSMode</string>
+			<key>label</key>
+			<string>Disable during SOS mode</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -320,59 +284,9 @@
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
-			<string>firstTwoReversed</string>
+			<string>disableDuringTime</string>
 			<key>label</key>
-			<string>Reverse first two digits</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkListCell</string>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
-			<key>detail</key>
-			<string>PSListItemsController</string>
-			<key>key</key>
-			<string>secondTwo</string>
-			<key>label</key>
-			<string>Second two digits</string>
-			<key>validTitles</key>
-			<array>
-				<string>Time: hours digits</string>
-				<string>Time: minutes digits</string>
-				<string>Date: day</string>
-				<string>Date: month</string>
-				<string>Battery: remaining</string>
-				<string>Battery: used</string>
-				<string>Timeout to lock</string>
-				<string>Custom digits</string>
-			</array>
-			<key>validValues</key>
-			<array>
-				<integer>0</integer>
-				<integer>1</integer>
-				<integer>2</integer>
-				<integer>3</integer>
-				<integer>4</integer>
-				<integer>5</integer>
-				<integer>6</integer>
-				<integer>7</integer>
-			</array>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSEditTextCell</string>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
-			<key>detail</key>
-			<string>PSDetailController</string>
-			<key>key</key>
-			<string>secondTwoCustomDigits</string>
-			<key>label</key>
-			<string>Custom Digits</string>
-			<key>placeholder</key>
-			<string>00</string>
-			<key>isNumeric</key>
-			<true/>
+			<string>Disable during time interval</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -382,43 +296,9 @@
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
-			<string>secondTwoReversed</string>
+			<string>disableBioDuringTime</string>
 			<key>label</key>
-			<string>Reverse second two digits</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSLinkListCell</string>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
-			<key>detail</key>
-			<string>PSListItemsController</string>
-			<key>key</key>
-			<string>lastTwo</string>
-			<key>label</key>
-			<string>Last two digits</string>
-			<key>validTitles</key>
-			<array>
-				<string>Time: hours digits</string>
-				<string>Time: minutes digits</string>
-				<string>Date: day</string>
-				<string>Date: month</string>
-				<string>Battery: remaining</string>
-				<string>Battery: used</string>
-				<string>Timeout to lock</string>
-				<string>Custom digits</string>
-			</array>
-			<key>validValues</key>
-			<array>
-				<integer>0</integer>
-				<integer>1</integer>
-				<integer>2</integer>
-				<integer>3</integer>
-				<integer>4</integer>
-				<integer>5</integer>
-				<integer>6</integer>
-				<integer>7</integer>
-			</array>
+			<string>Also disable Touch ID/Face ID</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -428,25 +308,13 @@
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
-			<string>lastTwoCustomDigits</string>
+			<string>disableFromTime</string>
 			<key>label</key>
-			<string>Custom Digits</string>
+			<string>From time</string>
 			<key>placeholder</key>
-			<string>00</string>
+			<string>Colon (:) will be added for you</string>
 			<key>isNumeric</key>
 			<true/>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
-			<false/>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
-			<key>key</key>
-			<string>lastTwoReversed</string>
-			<key>label</key>
-			<string>Reverse last two digits</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -456,31 +324,13 @@
 			<key>detail</key>
 			<string>PSDetailController</string>
 			<key>key</key>
-			<string>timeShift</string>
+			<string>disableToTime</string>
 			<key>label</key>
-			<string>Time Shift</string>
+			<string>To time</string>
 			<key>placeholder</key>
-			<string>Minutes to add/subtract</string>
+			<string>Colon (:) will be added for you</string>
 			<key>isNumeric</key>
 			<true/>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSegmentCell</string>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
-			<key>key</key>
-			<string>timeShiftDirection</string>
-			<key>validTitles</key>
-			<array>
-				<string>Add</string>
-				<string>Subtract</string>
-			</array>
-			<key>validValues</key>
-			<array>
-				<string>+</string>
-				<string>-</string>
-			</array>
 		</dict>
 		<dict>
 			<key>cell</key>

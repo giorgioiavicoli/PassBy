@@ -6,7 +6,6 @@
 
 static BOOL isTweakEnabled;
 static BOOL savePasscode;
-static BOOL disableInSOSMode;
 static BOOL use24hFormat;
 
 static BOOL isSixDigitPasscode;
@@ -20,6 +19,10 @@ static BOOL showLastUnlock;
 static BOOL dismissLS;
 static BOOL dismissLSWithMedia;
 
+static BOOL disableInSOSMode;
+static BOOL disableDuringTime;
+static BOOL disableBioDuringTime;
+
 static BOOL NCHasContent;
 static BOOL unlockedWithTimeout;
 static BOOL wasUsingHeadphones;
@@ -31,7 +34,8 @@ static int  digitsGracePeriod;
 static int  timeShift;
 
 #include "PassByHelper.h"
-struct Digits first, second, last;
+static struct Digits first, second, last;
+static struct Time disableFromTime, disableToTime;
 
 static NSDate   *   lastUnlock          = nil;
 static NSDate   *   gracePeriodWiFiEnds = nil;
@@ -95,6 +99,40 @@ static void updateGracePeriods()
     wasUsingHeadphones = isUsingHeadphones();
 }
 
+static BOOL isTemporaryDisabled()
+{
+    if (disableDuringTime) {
+        NSDate * currentDate = [NSDate date];
+        NSDate * fromDate = 
+            [   [NSCalendar currentCalendar] 
+                dateBySettingHour:  disableFromTime.hours
+                minute:             disableFromTime.minutes
+                second:0
+                ofDate:currentDate
+                options:NSCalendarMatchFirst
+            ];
+        
+        NSDate * toDate = 
+            [   [NSCalendar currentCalendar] 
+                dateBySettingHour:  disableToTime.hours
+                minute:             disableToTime.minutes
+                second:0
+                ofDate:currentDate
+                options:NSCalendarMatchFirst
+            ];
+        
+        return 
+            [fromDate compare:toDate] == NSOrderedAscending
+                ? [fromDate compare:currentDate] == NSOrderedAscending
+                    && [currentDate compare:toDate] == NSOrderedAscending
+                : [fromDate compare:currentDate] == NSOrderedAscending
+                    || [currentDate compare:toDate] == NSOrderedAscending
+            ;
+    }
+
+    return NO;
+}
+
 static void unlockedWithPrimary(NSString * passcode)
 {
     dispatch_async(
@@ -118,7 +156,7 @@ static void unlockedWithPrimaryForFirstTime(NSString * passcode)
         ^{
             [truePasscode release];
             truePasscode = [passcode copy];
-            if(savePasscode)
+            if (savePasscode)
                 savePasscodeToFile();
 
             UIAlertView *alert =    
@@ -215,7 +253,9 @@ static void unlockedWithSecondary()
     ) {
         %orig;
     } else if (truePasscode && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)) {
-        if (![truePasscode isEqualToString:passcode] && !isInSOSMode && passcodeChecksOut(passcode)) {
+        if (![truePasscode isEqualToString:passcode] 
+        && !isInSOSMode && !isTemporaryDisabled()
+        && passcodeChecksOut(passcode)) {
             [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES];
             if (![SBLSManager isUILocked]) 
                 unlockedWithSecondary();
@@ -245,7 +285,10 @@ static void unlockedWithSecondary()
     ) {
         %orig;
     } else if (truePasscode && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)) {
-        if (![truePasscode isEqualToString:passcode] && !isInSOSMode && passcodeChecksOut(passcode)) {
+        if (![truePasscode isEqualToString:passcode] 
+        && !isInSOSMode && !isTemporaryDisabled()
+        && passcodeChecksOut(passcode)
+        ) {
             %orig(truePasscode, arg2);
             if (![self isUILocked])
                 unlockedWithSecondary();
@@ -271,7 +314,7 @@ static void unlockedWithSecondary()
 %hook SBUIPasscodeLockViewWithKeypad
 - (id)statusTitleView
 {
-    if(isTweakEnabled) {
+    if (isTweakEnabled) {
         if (!truePasscode) {
             UILabel * label = MSHookIvar<UILabel *>(self, "_statusTitleView");
             label.text = @"PassBy requires passcode";
@@ -302,6 +345,18 @@ static void unlockedWithSecondary()
 }
 %end
 
+@interface SBLockScreenBiometricAuthenticationCoordinator
+- (BOOL)isUnlockingDisabled;
+@end
+
+%hook SBLockScreenBiometricAuthenticationCoordinator
+- (BOOL)isUnlockingDisabled
+{
+    return isTweakEnabled && disableBioDuringTime
+        ? (isTemporaryDisabled() || %orig)
+        : %orig;
+}
+%end
 
 
 @interface VolumeControl
@@ -358,6 +413,9 @@ uint64_t getState(char const * const name)
 
 BOOL isInGrace()
 {
+    if (isTemporaryDisabled())
+        return NO;
+    
     if (gracePeriodEnds && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
         return YES;
 
@@ -381,7 +439,7 @@ static void displayStatusChanged(
     CFNotificationCenterRef center, void * observer, 
     CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
-    if(isTweakEnabled && !isInSOSMode) {
+    if (isTweakEnabled && !isInSOSMode) {
         dispatch_async(
             dispatch_get_main_queue(),
             ^{
@@ -409,18 +467,18 @@ static void lockstateChanged(
     CFNotificationCenterRef center, void * observer, 
     CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
-    if(isTweakEnabled)
+    if (isTweakEnabled)
         dispatch_async(
             dispatch_get_main_queue(),
             ^{
                 unsigned long long state = [[%c(SBLockStateAggregator) sharedInstance] lockState];
 
-                if((state & LOCKSTATE_NEEDSAUTH_MASK)) {
-                    if(!(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK)) {
+                if ((state & LOCKSTATE_NEEDSAUTH_MASK)) {
+                    if (!(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK)) {
                         if (graceTimeoutTimer) {
                             [graceTimeoutTimer invalidate];
                             graceTimeoutTimer = nil;
-                        } else if(unlockedWithTimeout) {
+                        } else if (unlockedWithTimeout) {
                             wasUsingHeadphones = NO;
                         } else {
                             updateGracePeriods();
@@ -450,9 +508,9 @@ static void passBySettingsChanged(
 
     isTweakEnabled          =   [[passByDict valueForKey:@"isEnabled"]              ?:@NO boolValue];
     savePasscode            =   [[passByDict valueForKey:@"savePasscode"]           ?:@NO boolValue];
-    disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
-    use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
+    isSixDigitPasscode      =   [[passByDict valueForKey:@"isSixDigitPasscode"]     ?:@YES boolValue];
     showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
+    use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
 
     useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO boolValue];
     gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0) intValue];
@@ -465,10 +523,17 @@ static void passBySettingsChanged(
     dismissLS               =   [[passByDict valueForKey:@"dismissLS"]              ?:@NO boolValue];
     dismissLSWithMedia      =   [[passByDict valueForKey:@"dismissLSWithMedia"]     ?:@NO boolValue];
 
-    timeShift               =   [[passByDict valueForKey:@"timeShift"]              ?:@(0) intValue];
-    isSixDigitPasscode      =   [[passByDict valueForKey:@"isSixDigitPasscode"]     ?:@YES boolValue];
     useMagicPasscode        =   [[passByDict valueForKey:@"useMagicPasscode"]       ?:@NO boolValue];
+    timeShift               =   [[passByDict valueForKey:@"timeShift"]              ?:@(0) intValue];
 
+    disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
+    disableDuringTime       =   [[passByDict valueForKey:@"disableDuringTime"]      ?:@NO boolValue];
+    disableBioDuringTime    =   [[passByDict valueForKey:@"disableBioDuringTime"]   ?:@NO boolValue];
+
+    disableDuringTime = 
+        disableDuringTime
+        && parseTime(&disableFromTime, [passByDict valueForKey:@"disableFromTime"])
+        && parseTime(&disableToTime,   [passByDict valueForKey:@"disableToTime"]);
 
     parseDigitsConfiguration(&first,
         [passByDict valueForKey:@"firstTwoCustomDigits"]    ?:@"00",
@@ -523,7 +588,7 @@ static void passByWiFiListChanged(
     NSMutableArray * WiFiListArr = [[NSMutableArray alloc] initWithCapacity:[WiFiListDict count]];
 
     for(NSString * key in [WiFiListDict keyEnumerator])
-        if([[WiFiListDict valueForKey:key] boolValue])
+        if ([[WiFiListDict valueForKey:key] boolValue])
             [WiFiListArr addObject:[key copy]];
     
     [WiFiListDict release];
@@ -578,7 +643,7 @@ static void setUUID()
 %ctor 
 {
     %init;
-    if(kCFCoreFoundationVersionNumber >= 1443.00)
+    if (kCFCoreFoundationVersionNumber >= 1443.00)
         %init(iOS11)
     else
         %init(iOS10)
