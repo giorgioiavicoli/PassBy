@@ -13,7 +13,9 @@ static BOOL useMagicPasscode;
 
 static BOOL useGracePeriod;
 static BOOL useGracePeriodOnWiFi;
+static BOOL useGPOnWiFiWhenLocked;
 static BOOL useGracePeriodOnBT;
+static BOOL useGPOnBTWhenLocked;
 static BOOL headphonesAutoUnlock;
 
 static BOOL showLastUnlock;
@@ -23,6 +25,7 @@ static BOOL dismissLSWithMedia;
 static BOOL disableInSOSMode;
 static BOOL disableDuringTime;
 static BOOL disableBioDuringTime;
+static BOOL disableAlert;
 
 static BOOL NCHasContent;
 static BOOL unlockedWithTimeout;
@@ -165,17 +168,18 @@ static void unlockedWithPrimaryForFirstTime(NSString * passcode)
             truePasscode = [passcode copy];
             if (savePasscode)
                 savePasscodeToFile();
-
-            UIAlertView *alert =    
-                [   [UIAlertView alloc]
-                    initWithTitle:@"PassBy"
-                    message:@"PassBy enabled!"
-                    delegate:nil 
-                    cancelButtonTitle:@"OK" 
-                    otherButtonTitles:nil
-                ];
-            [alert show];
-            [alert release];
+            if (!disableAlert) {
+                UIAlertView *alert =    
+                    [   [UIAlertView alloc]
+                        initWithTitle:@"PassBy"
+                        message:@"PassBy enabled!"
+                        delegate:nil 
+                        cancelButtonTitle:@"OK" 
+                        otherButtonTitles:nil
+                    ];
+                [alert show];
+                [alert release];
+            }
         }
     );
 }
@@ -401,9 +405,9 @@ BOOL isUsingWiFi()
 
 BOOL isUsingBT()
 {
-    BluetoothManager * bluetoothManager = [BluetoothManager sharedInstance];
     if (useGracePeriodOnBT && allowedBTs) {
-        NSArray * connectedDevices = [bluetoothManager connectedDevices];
+        NSArray * connectedDevices = 
+            [[BluetoothManager sharedInstance] connectedDevices];
         if ([connectedDevices count]) {
             for (BluetoothDevice * bluetoothDevice in connectedDevices) {
                 NSString * deviceName = [bluetoothDevice name];
@@ -413,6 +417,71 @@ BOOL isUsingBT()
     }   }   }
     return NO;
 }
+
+
+
+BOOL isInGrace()
+{
+    if (isTemporaryDisabled())
+        return NO;
+    
+    if (gracePeriodEnds 
+    && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
+        return YES;
+
+    if (gracePeriodWiFiEnds 
+    && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending) {
+        if (isUsingWiFi())
+            return YES;
+    } else {
+        [gracePeriodWiFiEnds release];
+        gracePeriodWiFiEnds = nil;
+    }
+
+    if (gracePeriodBTEnds 
+    && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending) {
+        if (isUsingBT())
+            return YES;
+    } else if ()
+     {
+        [gracePeriodBTEnds release];
+        gracePeriodBTEnds = nil;
+    }
+    
+
+    if (headphonesAutoUnlock)
+        return (wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones());
+
+    return NO;
+}
+
+void refreshDates()
+{
+    [currentDate        release];
+    [disableFromDate    release];
+    [disableToDate      release];
+
+    currentDate = [NSDate new];
+
+    disableFromDate = 
+        [   [NSCalendar currentCalendar] 
+            dateBySettingHour:  disableFromTime.hours
+            minute:             disableFromTime.minutes
+            second:0
+            ofDate:currentDate
+            options:NSCalendarMatchFirst
+        ];
+    disableToDate = 
+        [   [NSCalendar currentCalendar] 
+            dateBySettingHour:  disableToTime.hours
+            minute:             disableToTime.minutes
+            second:0
+            ofDate:currentDate
+            options:NSCalendarMatchFirst
+        ];
+}
+
+
 
 @interface NCNotificationCombinedListViewController
 - (BOOL)hasContent;
@@ -447,65 +516,6 @@ uint64_t getState(char const * const name)
     notify_get_state(token, &state);
     notify_cancel(token);
     return state;
-}
-
-BOOL isInGrace()
-{
-    if (isTemporaryDisabled())
-        return NO;
-    
-    if (gracePeriodEnds && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
-        return YES;
-
-    if (gracePeriodWiFiEnds) {
-        if (isUsingWiFi() && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending) {
-            return YES;
-        } else {
-            [gracePeriodWiFiEnds release];
-            gracePeriodWiFiEnds = nil;
-        }
-    }
-
-    if (gracePeriodBTEnds) {
-        if (isUsingBT() && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending) {
-            return YES;
-        } else {
-            [gracePeriodBTEnds release];
-            gracePeriodBTEnds = nil;
-        }
-    }
-    
-
-    if (headphonesAutoUnlock)
-        return (wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones());
-
-    return NO;
-}
-
-void refreshDates()
-{
-    [currentDate        release];
-        [disableFromDate    release];
-        [disableToDate      release];
-
-        currentDate = [NSDate new];
-
-        disableFromDate = 
-            [   [NSCalendar currentCalendar] 
-                dateBySettingHour:  disableFromTime.hours
-                minute:             disableFromTime.minutes
-                second:0
-                ofDate:currentDate
-                options:NSCalendarMatchFirst
-            ];
-        disableToDate = 
-            [   [NSCalendar currentCalendar] 
-                dateBySettingHour:  disableToTime.hours
-                minute:             disableToTime.minutes
-                second:0
-                ofDate:currentDate
-                options:NSCalendarMatchFirst
-            ];
 }
 
 
@@ -606,6 +616,7 @@ static void passBySettingsChanged(
     disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
     disableDuringTime       =   [[passByDict valueForKey:@"disableDuringTime"]      ?:@NO boolValue];
     disableBioDuringTime    =   [[passByDict valueForKey:@"disableBioDuringTime"]   ?:@NO boolValue];
+    disableAlert            =   [[passByDict valueForKey:@"disableAlert"]           ?:@NO boolValue];
 
     disableDuringTime = 
         disableDuringTime

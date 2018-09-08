@@ -72,7 +72,17 @@
 			<key>label</key>
 			<string>Use Wi-Fi auto-unlock</string>
 			<key>footerText</key>
-			<string>Bypasses the passcode lock within a certain period when connected to specific Wi-Fi networks (prior to locking)</string>
+			<string>Bypasses the passcode lock within a certain period when connected to specific Wi-Fi networks, prior to locking</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Use Bluetooth auto-unlock</string>
+			<key>footerText</key>
+			<string>Bypasses the passcode lock within a certain period when connected to specific Bluetooth devices, prior to locking</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
