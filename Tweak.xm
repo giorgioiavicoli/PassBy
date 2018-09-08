@@ -13,9 +13,7 @@ static BOOL useMagicPasscode;
 
 static BOOL useGracePeriod;
 static BOOL useGracePeriodOnWiFi;
-static BOOL useGPOnWiFiWhenLocked;
 static BOOL useGracePeriodOnBT;
-static BOOL useGPOnBTWhenLocked;
 static BOOL headphonesAutoUnlock;
 
 static BOOL showLastUnlock;
@@ -430,24 +428,24 @@ BOOL isInGrace()
         return YES;
 
     if (gracePeriodWiFiEnds 
-    && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending) {
-        if (isUsingWiFi())
-            return YES;
+    && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending
+    && isUsingWiFi()
+    ) {
+        return YES;
     } else {
         [gracePeriodWiFiEnds release];
         gracePeriodWiFiEnds = nil;
     }
 
     if (gracePeriodBTEnds 
-    && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending) {
-        if (isUsingBT())
-            return YES;
-    } else if ()
-     {
+    && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending 
+    && isUsingBT()
+    ) {
+        return YES;
+    } else {
         [gracePeriodBTEnds release];
         gracePeriodBTEnds = nil;
     }
-    
 
     if (headphonesAutoUnlock)
         return (wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones());

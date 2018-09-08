@@ -66,6 +66,7 @@
 {
     [@{} writeToFile:@PLIST_PATH        atomically:YES];
     [@{} writeToFile:@WIFI_PLIST_PATH   atomically:YES];
+    [@{} writeToFile:@BT_PLIST_PATH   atomically:YES];
     [self reloadSpecifiers];
 }
 
@@ -77,8 +78,48 @@
         
         [mailComposeVC setToRecipients:@[@"giorgio.iavicoli@icloud.com"]];
         [mailComposeVC setSubject:@"Feedback on PassBy"];
-    
-        [self presentViewController:mailComposeVC animated:YES completion:nil];
+
+        UIAlertController * alertController = 
+            [UIAlertController
+                title:"Send settings"
+                message:"Do you want to include settings in feedback? This does not include WiFi nor Bluetooth devices"
+                preferredStyle:UIAlertControllerStyleAlert
+            ];
+        
+        UIAlertAction * yesAction = 
+            [UIAlertAction 
+                actionWithTitle:@"Yes" 
+                style:UIAlertActionStyleDefault
+                handler:^(UIAlertAction * action) 
+                {
+                    [mailComposeVC 
+                        addAttachmentData:[NSData dataWithContentsOfFile:@PLIST_PATH] 
+                        mimeType:@"application/xml" 
+                        fileName:@"PassBySettings.plist"];
+                }
+            ];
+        
+        UIAlertAction * noAction = 
+            [UIAlertAction 
+                actionWithTitle:@"No" 
+                style:UIAlertActionStyleCancel
+                handler:nil
+            ];
+ 
+        [alert addAction:yesAction];
+        [alert addAction:noAction];
+        [self 
+            presentViewController:alert 
+            animated:YES 
+            completion:^
+            {
+                [self 
+                    presentViewController:mailComposeVC 
+                    animated:YES 
+                    completion:nil
+                ];
+            }
+        ];
     }
 }
 
