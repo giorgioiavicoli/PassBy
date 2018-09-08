@@ -6,6 +6,7 @@
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
 #define BT_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
 
+
 @implementation PassByRootListController
 
 - (NSArray *)specifiers 
@@ -80,9 +81,8 @@
         [mailComposeVC setSubject:@"Feedback on PassBy"];
 
         UIAlertController * alertController = 
-            [UIAlertController
-                title:"Send settings"
-                message:"Do you want to include settings in feedback? This does not include WiFi nor Bluetooth devices"
+            [UIAlertController alertControllerWithTitle:@"Attach settings"
+                message:@"Do you want to include settings in feedback? \n This will NOT include names of WiFi nor Bluetooth devices"
                 preferredStyle:UIAlertControllerStyleAlert
             ];
         
@@ -95,7 +95,13 @@
                     [mailComposeVC 
                         addAttachmentData:[NSData dataWithContentsOfFile:@PLIST_PATH] 
                         mimeType:@"application/xml" 
-                        fileName:@"PassBySettings.plist"];
+                        fileName:@"PassBySettings.plist"
+                    ];
+                    [self
+                        presentViewController:mailComposeVC 
+                        animated:YES 
+                        completion:nil
+                    ];
                 }
             ];
         
@@ -103,22 +109,22 @@
             [UIAlertAction 
                 actionWithTitle:@"No" 
                 style:UIAlertActionStyleCancel
-                handler:nil
+                handler:^(UIAlertAction * action) 
+                {
+                    [self
+                        presentViewController:mailComposeVC 
+                        animated:YES 
+                        completion:nil
+                    ];
+                }
             ];
  
-        [alert addAction:yesAction];
-        [alert addAction:noAction];
+        [alertController addAction:yesAction];
+        [alertController addAction:noAction];
         [self 
-            presentViewController:alert 
+            presentViewController:alertController 
             animated:YES 
-            completion:^
-            {
-                [self 
-                    presentViewController:mailComposeVC 
-                    animated:YES 
-                    completion:nil
-                ];
-            }
+            completion:nil
         ];
     }
 }
