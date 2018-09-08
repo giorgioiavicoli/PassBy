@@ -7,10 +7,24 @@
 @interface PassByWiFiListController : PSListController
 @end
 
+@interface PassByBTListController : PSListController
+@end
+
 @interface PassByHelpListController : PSListController
 @end
 
 @interface PassByMagicPasscodeListController : PSListController
+@end
+
+@interface BluetoothDevice : NSObject
+-(NSString *)name;
+-(NSString*)address;
+@end
+
+
+@interface BluetoothManager : NSObject
++(id)sharedInstance;
+-(id)pairedDevices;
 @end
 
 typedef struct __WiFiNetwork* WiFiNetworkRef;

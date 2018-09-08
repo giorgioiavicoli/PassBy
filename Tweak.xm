@@ -13,6 +13,7 @@ static BOOL useMagicPasscode;
 
 static BOOL useGracePeriod;
 static BOOL useGracePeriodOnWiFi;
+static BOOL useGracePeriodOnBT;
 static BOOL headphonesAutoUnlock;
 
 static BOOL showLastUnlock;
@@ -30,6 +31,7 @@ static BOOL isInSOSMode;
 
 static int  gracePeriod;
 static int  gracePeriodOnWiFi;
+static int  gracePeriodOnBT;
 static int  digitsGracePeriod;
 static int  timeShift;
 
@@ -37,22 +39,34 @@ static int  timeShift;
 static struct Digits first, second, last;
 static struct Time disableFromTime, disableToTime;
 
-static NSDate   *   lastUnlock          = nil;
-static NSDate   *   gracePeriodWiFiEnds = nil;
+static NSDate   *   disableFromDate     = nil;
+static NSDate   *   disableToDate       = nil;
+
 static NSDate   *   gracePeriodEnds     = nil;
+static NSDate   *   gracePeriodWiFiEnds = nil;
+static NSDate   *   gracePeriodBTEnds   = nil;
 static NSTimer  *   graceTimeoutTimer   = nil;
+
 static NSArray  *   allowedSSIDs        = nil;
+static NSArray  *   allowedBTs          = nil;
+
 
 static NSString *   truePasscode        = nil;
 static NSData   *   UUID                = nil;
+
+static NSDate   *   currentDate         = nil;
+static NSDate   *   lastUnlock          = nil;
 static uint64_t     lastLockstate       = 3;
 
-#define PLIST_PATH                  "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
-#define WIFI_PLIST_PATH             "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
+#define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
+#define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
+#define BT_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
+
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
 BOOL isUsingHeadphones();
 BOOL isUsingWiFi();
+BOOL isUsingBT();
 
 static void savePasscodeToFile()
 {
@@ -81,6 +95,14 @@ static void updateGracePeriods()
 {
     [gracePeriodEnds release];
     [gracePeriodWiFiEnds release];
+    [gracePeriodBTEnds release];
+
+    gracePeriodEnds = 
+        useGracePeriod 
+            ? (gracePeriod
+                ? [[[NSDate new] dateByAddingTimeInterval: gracePeriod] retain]
+                : [[NSDate distantFuture] copy]
+            ) : nil;
 
     gracePeriodWiFiEnds = 
         useGracePeriodOnWiFi && isUsingWiFi()
@@ -88,11 +110,11 @@ static void updateGracePeriods()
                 ? [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnWiFi] retain]
                 : [[NSDate distantFuture] copy]
             ) : nil;
-
-    gracePeriodEnds = 
-        useGracePeriod 
-            ? (gracePeriod
-                ? [[[NSDate new] dateByAddingTimeInterval: gracePeriod] retain]
+    
+    gracePeriodBTEnds = 
+        useGracePeriodOnBT && isUsingBT()
+            ? (gracePeriodOnBT
+                ? [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnBT] retain]
                 : [[NSDate distantFuture] copy]
             ) : nil;
     
@@ -101,36 +123,21 @@ static void updateGracePeriods()
 
 static BOOL isTemporaryDisabled()
 {
-    if (disableDuringTime) {
-        NSDate * currentDate = [NSDate date];
-        NSDate * fromDate = 
-            [   [NSCalendar currentCalendar] 
-                dateBySettingHour:  disableFromTime.hours
-                minute:             disableFromTime.minutes
-                second:0
-                ofDate:currentDate
-                options:NSCalendarMatchFirst
-            ];
-        
-        NSDate * toDate = 
-            [   [NSCalendar currentCalendar] 
-                dateBySettingHour:  disableToTime.hours
-                minute:             disableToTime.minutes
-                second:0
-                ofDate:currentDate
-                options:NSCalendarMatchFirst
-            ];
-        
-        return 
-            [fromDate compare:toDate] == NSOrderedAscending
-                ? [fromDate compare:currentDate] == NSOrderedAscending
-                    && [currentDate compare:toDate] == NSOrderedAscending
-                : [fromDate compare:currentDate] == NSOrderedAscending
-                    || [currentDate compare:toDate] == NSOrderedAscending
-            ;
+    if (!disableDuringTime)
+        return NO;
+
+    if (![[NSCalendar currentCalendar] isDate:[NSDate date] inSameDayAsDate:currentDate]) {
+        [currentDate release];
+        currentDate = [NSDate new];
     }
 
-    return NO;
+    return 
+        [disableFromDate compare:disableToDate] == NSOrderedAscending
+            ? [disableFromDate compare:currentDate] == NSOrderedAscending
+                && [currentDate compare:disableToDate] == NSOrderedAscending
+            : [disableFromDate compare:currentDate] == NSOrderedAscending
+                || [currentDate compare:disableToDate] == NSOrderedAscending
+        ;
 }
 
 static void unlockedWithPrimary(NSString * passcode)
@@ -371,9 +378,40 @@ BOOL isUsingHeadphones()
 
 BOOL isUsingWiFi()
 {
+    if (!useGracePeriodOnWiFi)
+        return NO;
+
     NSString * SSID = ((NSDictionary *)CNCopyCurrentNetworkInfo(CFSTR("en0"))) [@"SSID"];
-    return SSID && [SSID length] && useGracePeriodOnWiFi 
-        && allowedSSIDs && [allowedSSIDs containsObject:SHA1(SSID)];
+    return 
+        SSID && [SSID length]
+        && allowedSSIDs 
+        && [allowedSSIDs containsObject:SHA1(SSID)];
+}
+
+@interface BluetoothDevice : NSObject
+-(NSString *)name;
+-(NSString*)address;
+@end
+
+
+@interface BluetoothManager : NSObject
++(id)sharedInstance;
+-(id)connectedDevices;
+@end
+
+BOOL isUsingBT()
+{
+    BluetoothManager * bluetoothManager = [BluetoothManager sharedInstance];
+    if (useGracePeriodOnBT && allowedBTs) {
+        NSArray * connectedDevices = [bluetoothManager connectedDevices];
+        if ([connectedDevices count]) {
+            for (BluetoothDevice * bluetoothDevice in connectedDevices) {
+                NSString * deviceName = [bluetoothDevice name];
+                if (deviceName && [deviceName length]
+                && [allowedBTs containsObject:SHA1(deviceName)])
+                    return YES;
+    }   }   }
+    return NO;
 }
 
 @interface NCNotificationCombinedListViewController
@@ -428,10 +466,46 @@ BOOL isInGrace()
         }
     }
 
+    if (gracePeriodBTEnds) {
+        if (isUsingBT() && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending) {
+            return YES;
+        } else {
+            [gracePeriodBTEnds release];
+            gracePeriodBTEnds = nil;
+        }
+    }
+    
+
     if (headphonesAutoUnlock)
         return (wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones());
 
     return NO;
+}
+
+void refreshDates()
+{
+    [currentDate        release];
+        [disableFromDate    release];
+        [disableToDate      release];
+
+        currentDate = [NSDate new];
+
+        disableFromDate = 
+            [   [NSCalendar currentCalendar] 
+                dateBySettingHour:  disableFromTime.hours
+                minute:             disableFromTime.minutes
+                second:0
+                ofDate:currentDate
+                options:NSCalendarMatchFirst
+            ];
+        disableToDate = 
+            [   [NSCalendar currentCalendar] 
+                dateBySettingHour:  disableToTime.hours
+                minute:             disableToTime.minutes
+                second:0
+                ofDate:currentDate
+                options:NSCalendarMatchFirst
+            ];
 }
 
 
@@ -518,6 +592,9 @@ static void passBySettingsChanged(
     useGracePeriodOnWiFi    =   [[passByDict valueForKey:@"useGracePeriodOnWiFi"]   ?:@NO boolValue];
     gracePeriodOnWiFi       =   [[passByDict valueForKey:@"gracePeriodOnWiFi"]      ?:@(0) intValue];
 
+    useGracePeriodOnBT      =   [[passByDict valueForKey:@"useGracePeriodOnBT"]     ?:@NO boolValue];
+    gracePeriodOnBT         =   [[passByDict valueForKey:@"gracePeriodOnBT"]        ?:@(0) intValue];
+
     headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO boolValue];
 
     dismissLS               =   [[passByDict valueForKey:@"dismissLS"]              ?:@NO boolValue];
@@ -534,6 +611,9 @@ static void passBySettingsChanged(
         disableDuringTime
         && parseTime(&disableFromTime, [passByDict valueForKey:@"disableFromTime"])
         && parseTime(&disableToTime,   [passByDict valueForKey:@"disableToTime"]);
+
+    if (disableDuringTime)
+        refreshDates();
 
     parseDigitsConfiguration(&first,
         [passByDict valueForKey:@"firstTwoCustomDigits"]    ?:@"00",
@@ -575,6 +655,13 @@ static void passBySettingsChanged(
     }
 
     [passByDict release];    
+
+    [gracePeriodEnds        release];
+    gracePeriodEnds         = nil;
+    [gracePeriodWiFiEnds    release];
+    gracePeriodWiFiEnds     = nil;
+    [gracePeriodBTEnds      release];
+    gracePeriodBTEnds       = nil;
 }
 
 static void passByWiFiListChanged(
@@ -597,6 +684,30 @@ static void passByWiFiListChanged(
     [WiFiListArr release];
 }
 
+static void passByBTListChanged(
+    CFNotificationCenterRef center, void * observer, 
+    CFStringRef name, void const * object, CFDictionaryRef userInfo)
+{
+    NSDictionary * BTListDict =   
+        [   [NSDictionary alloc] 
+            initWithContentsOfFile:@BT_PLIST_PATH
+        ]?: [NSDictionary new];
+
+    NSMutableArray * BTListArr = 
+        [   [NSMutableArray alloc] 
+            initWithCapacity:[BTListDict count]
+        ];
+
+    for(NSString * key in [BTListDict keyEnumerator])
+        if ([[BTListDict valueForKey:key] boolValue])
+            [BTListArr addObject:[key copy]];
+    
+    [BTListDict release];
+    [allowedBTs release];
+    allowedBTs = [[NSArray alloc] initWithArray:BTListArr copyItems:NO];
+    [BTListArr release];
+}
+
 
 static void setDarwinNCObservers()
 {
@@ -612,6 +723,12 @@ static void setDarwinNCObservers()
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
                                     
+    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
+                                        passByBTListChanged,
+                                        CFSTR("com.giorgioiavicoli.passby/bt"), NULL, 
+                                        CFNotificationSuspensionBehaviorCoalesce
+                                    );
+
 	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
 	dlopen("/System/Library/PrivateFrameworks/UserNotificationsUIKit.framework/UserNotificationsUIKit", RTLD_LAZY);
 

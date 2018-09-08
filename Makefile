@@ -6,7 +6,7 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = PassBy
 PassBy_FILES = Tweak.xm
 PassBy_FRAMEWORKS = UIKit
-PassBy_PRIVATE_FRAMEWORKS = SpringBoardFoundation
+PassBy_PRIVATE_FRAMEWORKS = SpringBoardFoundation BluetoothManager
 
 #ADDITIONAL_CFLAGS = -objc-arc
 

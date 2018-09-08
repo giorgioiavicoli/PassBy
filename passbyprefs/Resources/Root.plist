@@ -142,6 +142,12 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Wi-Fi auto-unlock options</string>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
 			<false/>
@@ -195,6 +201,74 @@
 			<string>Enabled Wi-Fi networks list</string>
 			<key>detail</key>
 			<string>PassByWiFiListController</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Bluetooth auto-unlock options</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>useGracePeriodOnBT</string>
+			<key>label</key>
+			<string>Use Bluetooth auto-unlock</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSEditTextCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>detail</key>
+			<string>PSDetailController</string>
+			<key>key</key>
+			<string>gracePeriodOnBT</string>
+			<key>label</key>
+			<string>Timeout on Bluetooth</string>
+			<key>placeholder</key>
+			<string>0 = never require passcode</string>
+			<key>isNumeric</key>
+			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>gracePeriodUnitOnBT</string>
+			<key>label</key>
+			<string>Timeout unit</string>
+			<key>validTitles</key>
+			<array>
+				<string>Seconds</string>
+				<string>Minutes</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<string>s</string>
+				<string>m</string>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>label</key>
+			<string>Enabled Bluetooth devices list</string>
+			<key>detail</key>
+			<string>PassByBTListController</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Othert auto-unlock options</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -331,6 +405,18 @@
 			<string>Colon (:) will be added for you</string>
 			<key>isNumeric</key>
 			<true/>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>disableAlert</string>
+			<key>label</key>
+			<string>Disable "PassBy Enabled" alert</string>
 		</dict>
 		<dict>
 			<key>cell</key>

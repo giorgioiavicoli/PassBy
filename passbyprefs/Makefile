@@ -4,7 +4,7 @@ BUNDLE_NAME = PassByPrefs
 PassByPrefs_FILES = PassByRootListController.m
 PassByPrefs_INSTALL_PATH = /Library/PreferenceBundles
 PassByPrefs_FRAMEWORKS = UIKit Message
-PassByPrefs_PRIVATE_FRAMEWORKS = Preferences MobileWiFi
+PassByPrefs_PRIVATE_FRAMEWORKS = Preferences MobileWiFi BluetoothManager
 
 LDFLAGS = -F /Users/giorgioiavicoli/theos/sdks/iPhoneOS11.2.sdk/System/Library/PrivateFrameworks
 

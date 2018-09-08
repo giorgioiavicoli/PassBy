@@ -218,6 +218,16 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>Disable "PassBy Enabled" alert</string>
+			<key>footerText</key>
+			<string>Disable alert after entering passcode for the first time (useful if you're not saving passcode over resprings)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Reset</string>
 			<key>footerText</key>
 			<string>Resets all options to default</string>

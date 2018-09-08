@@ -4,7 +4,7 @@
 
 #define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
-
+#define BT_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
 
 @implementation PassByRootListController
 
@@ -48,7 +48,7 @@
             if (len <= 2) {
                 value = [value mutableCopy];
                 [value appendString:@":00"];
-            } else if (len <= 4) {
+            } else if (len <= 4 && [value characterAtIndex:len-3] != ':') {
                 value = [value mutableCopy];
                 [value insertString:@":" atIndex:len-2];
             }
@@ -110,15 +110,16 @@ NSString * SHA1(NSString * str);
                 for(id network in networks) {
                     NSString * name = (NSString *) WiFiNetworkGetSSID((WiFiNetworkRef)network);
                     if (name) {
-                        PSSpecifier * specifier = [ PSSpecifier 
-                                                        preferenceSpecifierNamed:name
-                                                        target:self
-                                                        set:@selector(setPreferenceValue:specifier:)
-                                                        get:@selector(readPreferenceValue:)
-                                                        detail:Nil
-                                                        cell:PSSwitchCell
-                                                        edit:Nil
-                                                    ];
+                        PSSpecifier * specifier =
+                            [ PSSpecifier 
+                                preferenceSpecifierNamed:name
+                                target:self
+                                set:@selector(setPreferenceValue:specifier:)
+                                get:@selector(readPreferenceValue:)
+                                detail:Nil
+                                cell:PSSwitchCell
+                                edit:Nil
+                            ];
                         [specifier setProperty:[NSString stringWithString:name] forKey:@"key"];
                         [specifier setProperty:[[NSNumber alloc] initWithBool:TRUE] forKey:@"enabled"];
                         [specifier 
@@ -155,6 +156,78 @@ NSString * SHA1(NSString * str);
     [settings writeToFile:@(WIFI_PLIST_PATH) atomically:YES];
     [settings release];
     notify_post("com.giorgioiavicoli.passby/wifi");
+}
+
+@end
+
+
+@implementation PassByBTListController
+
+- (NSArray *)specifiers 
+{
+	if (!_specifiers) {
+        NSMutableArray * specifiers = [NSMutableArray new];
+
+        NSDictionary * bluetoothList =  
+            [   [NSDictionary alloc] 
+                initWithContentsOfFile:@BT_PLIST_PATH
+            ] ?: [NSDictionary new];
+
+        BluetoothManager * bluetoothManager = [BluetoothManager sharedInstance];
+
+        NSArray * pairedDevices = [bluetoothManager pairedDevices];
+        if ([pairedDevices count]) {
+            for (BluetoothDevice * bluetoothDevice in pairedDevices) {
+                NSString * name = [bluetoothDevice name];
+
+                if (name) {
+                    PSSpecifier * specifier = 
+                        [ PSSpecifier 
+                            preferenceSpecifierNamed:name
+                            target:self
+                            set:@selector(setPreferenceValue:specifier:)
+                            get:@selector(readPreferenceValue:)
+                            detail:Nil
+                            cell:PSSwitchCell
+                            edit:Nil
+                        ];
+                    [specifier setProperty:[NSString stringWithString:name] forKey:@"key"];
+                    [specifier setProperty:[[NSNumber alloc] initWithBool:TRUE] forKey:@"enabled"];
+                    [specifier 
+                        setProperty:[[bluetoothList valueForKey:SHA1(name)] copy]?:@(NO)
+                        forKey:@"default"
+                    ];
+                    [specifiers addObject:specifier];
+                }
+            }
+        }
+        
+        [bluetoothList release];
+        _specifiers = [specifiers retain];
+    }
+
+    return _specifiers;
+}
+
+- (id)readPreferenceValue:(PSSpecifier*)specifier 
+{
+    NSString * key = [specifier propertyForKey:@"key"];
+    return [[NSDictionary alloc] initWithContentsOfFile:@BT_PLIST_PATH][key] 
+        ?:[specifier properties][@"default"];
+}
+
+- (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier 
+{
+    NSMutableDictionary * settings =    [  [NSMutableDictionary alloc] 
+                                            initWithContentsOfFile:@BT_PLIST_PATH
+                                        ] ?:[NSMutableDictionary new];
+    [settings 
+        setObject:value 
+        forKey:[SHA1([specifier propertyForKey:@"key"]) autorelease]
+    ];
+    [settings writeToFile:@BT_PLIST_PATH atomically:YES];
+    [settings release];
+    notify_post("com.giorgioiavicoli.passby/bt");
 }
 @end
 
