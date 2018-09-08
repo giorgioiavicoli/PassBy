@@ -22,7 +22,7 @@
 			<key>label</key>
 			<string>Do not require passcode after respring</string>
 			<key>footerText</key>
-			<string>Saves passcode so that you don't need to enter it once every respring. Your passcode will always be saved encrypted</string>
+			<string>Saves passcode so that you don't need to enter it once every respring (although it still requires one authentication by either Touch ID/Face ID, true, or magic passcode). Your passcode will always be saved encrypted</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
@@ -42,7 +42,7 @@
 			<key>label</key>
 			<string>Show last time unlocked</string>
 			<key>footerText</key>
-			<string>Replaces title in passcode view with the last time the device was unlocked</string>
+			<string>Replaces title above passcode view with the last time the device was unlocked</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
@@ -152,7 +152,7 @@
 			<key>label</key>
 			<string>Battery Used</string>
 			<key>footerText</key>
-			<string>100 - current percentage, (for example 32 if battery is at 68%)</string>
+			<string>100 - current percentage, (for example, 32 if battery is at 68%)</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
