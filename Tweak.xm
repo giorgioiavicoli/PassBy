@@ -142,19 +142,22 @@ static BOOL isTemporaryDisabled()
 }
 
 
-static void unlockedWithPrimary(NSString * passcode, BOOL firstTime)
+static void unlockedWithPrimary(NSString * passcode)
 {
     dispatch_async(
         dispatch_get_main_queue(),
         ^{
             isInSOSMode = NO;
-            if (!passcode || ![passcode isEqualToString:truePasscode]) {
+            if (!truePasscode 
+            || [truePasscode length] != isSixDigitPasscode ? 6 : 4
+            || ![truePasscode isEqualToString:passcode]
+            ) {
                 [truePasscode release];
                 truePasscode = [passcode copy];
                 if (savePasscode)
                     savePasscodeToFile();
                     
-                if (firstTime && !disableAlert) {
+                if (!disableAlert) {
                     UIAlertView *alert =    
                         [   [UIAlertView alloc]
                             initWithTitle:@"PassBy"
@@ -228,8 +231,6 @@ BOOL passcodeChecksOut(NSString * passcode)
 
 BOOL checkAttemptedUnlock(NSString * passcode)
 {
-    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
-
     if (!passcode 
     || [passcode length] != (isSixDigitPasscode ? 6 : 4)
     || (!useMagicPasscode && truePasscode)
@@ -260,14 +261,17 @@ BOOL checkAttemptedUnlock(NSString * passcode)
 %group iOS10
 %hook SBFUserAuthenticationController
 - (void)processAuthenticationRequest:(SBFAuthenticationRequest *)request responder:(id)arg2 
-{
+{   
     if (!isTweakEnabled)
         return %orig;
     
-    NSString * passcode = [ [[NSString alloc] retain]
-                            initWithData:[request payload]
-                            encoding:NSASCIIStringEncoding
-                        ];
+    NSString * passcode = 
+        [   [[NSString alloc] retain]
+            initWithData:[request payload]
+            encoding:NSASCIIStringEncoding
+        ];
+    
+    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
 
     if (checkAttemptedUnlock(passcode)) {
         [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES];
@@ -276,8 +280,9 @@ BOOL checkAttemptedUnlock(NSString * passcode)
     } else {
         %orig;
         if (![SBLSManager isUILocked])
-            unlockedWithPrimary(!truePasscode || ![truePasscode length]);
+            unlockedWithPrimary(passcode);
     }
+
     [passcode release];
 }
 %end
@@ -289,15 +294,17 @@ BOOL checkAttemptedUnlock(NSString * passcode)
 {
     if (!isTweakEnabled)
         return %orig;
+    
+    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
 
     if (checkAttemptedUnlock(passcode)) {
-        %orig(truePasscode, arg2);
+        %orig(truePasscode);
         if (![SBLSManager isUILocked]) 
             unlockedWithSecondary();
     } else {
         %orig;
         if (![SBLSManager isUILocked])
-            unlockedWithPrimary(!truePasscode || ![truePasscode length]);
+            unlockedWithPrimary(passcode);
     }
 }
 
@@ -306,6 +313,8 @@ BOOL checkAttemptedUnlock(NSString * passcode)
     if (!isTweakEnabled)
         return %orig;
 
+    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
+
     if (checkAttemptedUnlock(passcode)) {
         %orig(truePasscode, arg2);
         if (![SBLSManager isUILocked]) 
@@ -313,7 +322,7 @@ BOOL checkAttemptedUnlock(NSString * passcode)
     } else {
         %orig;
         if (![SBLSManager isUILocked])
-            unlockedWithPrimary(!truePasscode || ![truePasscode length]);
+            unlockedWithPrimary(passcode);
     }
 }
 %end
