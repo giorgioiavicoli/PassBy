@@ -56,7 +56,7 @@ static NSArray  *   allowedBTs          = nil;
 static NSString *   truePasscode        = nil;
 static NSData   *   UUID                = nil;
 
-static NSDate   *   currentDate         = nil;
+static NSDate   *   currentDay          = nil;
 static NSDate   *   lastUnlock          = nil;
 
 #define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
@@ -124,18 +124,18 @@ static void updateGracePeriods()
 
 static void refreshDisabledInterval()
 {
-    [currentDate        release];
+    [currentDay         release];
     [disableFromDate    release];
     [disableToDate      release];
 
-    currentDate = [NSDate new];
+    currentDay = [NSDate new];
 
     disableFromDate = 
         [   [NSCalendar currentCalendar] 
             dateBySettingHour:  disableFromTime.hours
             minute:             disableFromTime.minutes
             second:0
-            ofDate:currentDate
+            ofDate:currentDay
             options:NSCalendarMatchFirst
         ];
     disableToDate = 
@@ -143,7 +143,7 @@ static void refreshDisabledInterval()
             dateBySettingHour:  disableToTime.hours
             minute:             disableToTime.minutes
             second:0
-            ofDate:currentDate
+            ofDate:currentDay
             options:NSCalendarMatchFirst
         ];
 }
@@ -153,11 +153,13 @@ static BOOL isTemporaryDisabled()
 {
     if (!disableDuringTime)
         return NO;
+    
+    NSDate * currentDate = [NSDate date];
 
     if (
     ![  [NSCalendar currentCalendar] 
-        isDate:[NSDate date] 
-        inSameDayAsDate:currentDate
+        isDate:currentDate
+        inSameDayAsDate:currentDay
     ]) {
         refreshDisabledInterval();
     }
