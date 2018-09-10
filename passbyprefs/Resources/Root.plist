@@ -133,11 +133,13 @@
 			<array>
 				<string>Seconds</string>
 				<string>Minutes</string>
+				<string>Hours</string>
 			</array>
 			<key>validValues</key>
 			<array>
-				<string>s</string>
-				<string>m</string>
+				<integer>1</integer>
+				<integer>60</integer>
+				<integer>3600</integer>
 			</array>
 		</dict>
 		<dict>
@@ -187,11 +189,13 @@
 			<array>
 				<string>Seconds</string>
 				<string>Minutes</string>
+				<string>Hours</string>
 			</array>
 			<key>validValues</key>
 			<array>
-				<string>s</string>
-				<string>m</string>
+				<integer>1</integer>
+				<integer>60</integer>
+				<integer>3600</integer>
 			</array>
 		</dict>
 		<dict>
@@ -249,11 +253,13 @@
 			<array>
 				<string>Seconds</string>
 				<string>Minutes</string>
+				<string>Hours</string>
 			</array>
 			<key>validValues</key>
 			<array>
-				<string>s</string>
-				<string>m</string>
+				<integer>1</integer>
+				<integer>60</integer>
+				<integer>3600</integer>
 			</array>
 		</dict>
 		<dict>
@@ -268,7 +274,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Othert auto-unlock options</string>
+			<string>Other auto-unlock options</string>
 		</dict>
 		<dict>
 			<key>cell</key>

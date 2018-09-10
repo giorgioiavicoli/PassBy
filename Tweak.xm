@@ -122,14 +122,44 @@ static void updateGracePeriods()
     wasUsingHeadphones = isUsingHeadphones();
 }
 
+void refreshDisabledInterval()
+{
+    [currentDate        release];
+    [disableFromDate    release];
+    [disableToDate      release];
+
+    currentDate = [NSDate new];
+
+    disableFromDate = 
+        [   [NSCalendar currentCalendar] 
+            dateBySettingHour:  disableFromTime.hours
+            minute:             disableFromTime.minutes
+            second:0
+            ofDate:currentDate
+            options:NSCalendarMatchFirst
+        ];
+    disableToDate = 
+        [   [NSCalendar currentCalendar] 
+            dateBySettingHour:  disableToTime.hours
+            minute:             disableToTime.minutes
+            second:0
+            ofDate:currentDate
+            options:NSCalendarMatchFirst
+        ];
+}
+
+
 static BOOL isTemporaryDisabled()
 {
     if (!disableDuringTime)
         return NO;
 
-    if (![[NSCalendar currentCalendar] isDate:[NSDate date] inSameDayAsDate:currentDate]) {
-        [currentDate release];
-        currentDate = [NSDate new];
+    if (
+    ![  [NSCalendar currentCalendar] 
+        isDate:[NSDate date] 
+        inSameDayAsDate:currentDate
+    ]) {
+        refreshDisabledInterval();
     }
 
     return 
@@ -140,6 +170,43 @@ static BOOL isTemporaryDisabled()
                 || [currentDate compare:disableToDate] == NSOrderedAscending
         ;
 }
+
+BOOL passcodeChecksOut(NSString * passcode) 
+{
+    return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
+        && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
+        && (!isSixDigitPasscode 
+            || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5])
+        );
+}
+
+BOOL checkAttemptedUnlock(NSString * passcode)
+{
+    return passcode && truePasscode
+    && useMagicPasscode 
+    && !isInSOSMode 
+    && !isTemporaryDisabled()
+    && [passcode length] == (isSixDigitPasscode ? 6 : 4)
+    && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
+    && ![truePasscode isEqualToString:passcode]
+    && passcodeChecksOut(passcode);
+}
+
+
+@class SBLockScreenViewControllerBase; //Forward declaration
+
+@interface SBLockScreenManager : NSObject
+@property(readonly) BOOL isUILocked;
++ (id)sharedInstance;
+//- (BOOL)attemptUnlockWithPasscode:(NSString *)passcode;
+- (void)attemptUnlockWithPasscode:(NSString *)passcode completion:(/*^block*/id)arg2 ;
+
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode finishUIUnlock:(BOOL)arg2;
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 ;
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 completion:(/*^block*/id)arg4 ;
+
+- (SBLockScreenViewControllerBase *) lockScreenViewController;
+@end
 
 
 static void unlockedWithPrimary(NSString * passcode)
@@ -211,44 +278,6 @@ static void unlockedWithSecondary()
         }
     );
 }
-
-
-@class SBLockScreenViewControllerBase; //Forward declaration
-
-@interface SBLockScreenManager : NSObject
-@property(readonly) BOOL isUILocked;
-+ (id)sharedInstance;
-//- (BOOL)attemptUnlockWithPasscode:(NSString *)passcode;
-- (void)attemptUnlockWithPasscode:(NSString *)passcode completion:(/*^block*/id)arg2 ;
-
-- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode finishUIUnlock:(BOOL)arg2;
-- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 ;
-- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 completion:(/*^block*/id)arg4 ;
-
-- (SBLockScreenViewControllerBase *) lockScreenViewController;
-@end
-
-BOOL passcodeChecksOut(NSString * passcode) 
-{
-    return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
-        && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
-        && (!isSixDigitPasscode 
-            || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5])
-        );
-}
-
-BOOL checkAttemptedUnlock(NSString * passcode)
-{
-    return passcode && truePasscode
-    && useMagicPasscode 
-    && !isInSOSMode 
-    && !isTemporaryDisabled()
-    && [passcode length] == (isSixDigitPasscode ? 6 : 4)
-    && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
-    && ![truePasscode isEqualToString:passcode]
-    && passcodeChecksOut(passcode);
-}
-
 
 @interface SBLockStateAggregator : NSObject
 +(id)sharedInstance;
@@ -484,33 +513,6 @@ BOOL isInGrace()
     return NO;
 }
 
-void refreshDates()
-{
-    [currentDate        release];
-    [disableFromDate    release];
-    [disableToDate      release];
-
-    currentDate = [NSDate new];
-
-    disableFromDate = 
-        [   [NSCalendar currentCalendar] 
-            dateBySettingHour:  disableFromTime.hours
-            minute:             disableFromTime.minutes
-            second:0
-            ofDate:currentDate
-            options:NSCalendarMatchFirst
-        ];
-    disableToDate = 
-        [   [NSCalendar currentCalendar] 
-            dateBySettingHour:  disableToTime.hours
-            minute:             disableToTime.minutes
-            second:0
-            ofDate:currentDate
-            options:NSCalendarMatchFirst
-        ];
-}
-
-
 
 %group iOS11
 @interface NCNotificationCombinedListViewController
@@ -635,14 +637,22 @@ static void passBySettingsChanged(
     showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
     use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
 
+    int unit;
     useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO boolValue];
     gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0) intValue];
+    gracePeriodUnit         =   [[passByDict valueForKey:@"gracePeriodUnit"]        ?:@(1) intValue];
+    gracePeriod            *=   gracePeriodUnit;
 
     useGracePeriodOnWiFi    =   [[passByDict valueForKey:@"useGracePeriodOnWiFi"]   ?:@NO boolValue];
     gracePeriodOnWiFi       =   [[passByDict valueForKey:@"gracePeriodOnWiFi"]      ?:@(0) intValue];
+    gracePeriodUnit         =   [[passByDict valueForKey:@"gracePeriodUnitOnWiFi"]  ?:@(1) intValue];
+    gracePeriodOnWiFi      *=   gracePeriodUnit;
+
 
     useGracePeriodOnBT      =   [[passByDict valueForKey:@"useGracePeriodOnBT"]     ?:@NO boolValue];
     gracePeriodOnBT         =   [[passByDict valueForKey:@"gracePeriodOnBT"]        ?:@(0) intValue];
+    gracePeriodUnit         =   [[passByDict valueForKey:@"gracePeriodUnitOnBT"]    ?:@(1) intValue];
+    gracePeriodOnBT        *=   gracePeriodUnit;
 
     headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO boolValue];
 
@@ -663,7 +673,7 @@ static void passBySettingsChanged(
         && parseTime(&disableToTime,   [passByDict valueForKey:@"disableToTime"]);
 
     if (disableDuringTime)
-        refreshDates();
+        refreshDisabledInterval();
 
     parseDigitsConfiguration(&first,
         [passByDict valueForKey:@"firstTwoCustomDigits"]    ?:@"00",
@@ -680,12 +690,6 @@ static void passBySettingsChanged(
         [[passByDict valueForKey:@"lastTwo"]                ?:@(7) intValue],
         [[passByDict valueForKey:@"lastTwoReversed"]        ?:@NO boolValue]
     );
-
-    if ([[passByDict valueForKey:@"gracePeriodUnit"] ?:@"m" characterAtIndex:0] == 'm')
-        gracePeriod *= 60;
-    
-    if ([[passByDict valueForKey:@"gracePeriodUnitOnWiFi"] ?:@"m" characterAtIndex:0] == 'm')
-        gracePeriodOnWiFi *= 60;
 
     if ([[passByDict valueForKey:@"timeShiftDirection"] ?:@"+" characterAtIndex:0] == '-')
         timeShift = -timeShift;
