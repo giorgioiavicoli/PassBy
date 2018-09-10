@@ -67,9 +67,9 @@ static NSDate   *   lastUnlock          = nil;
 
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
-BOOL isUsingHeadphones();
-BOOL isUsingWiFi();
-BOOL isUsingBT();
+static BOOL isUsingHeadphones();
+static BOOL isUsingWiFi();
+static BOOL isUsingBT();
 
 static void savePasscodeToFile()
 {
@@ -150,7 +150,6 @@ static void refreshDisabledInterval()
         ];
 }
 
-
 static BOOL isTemporaryDisabled()
 {
     if (!disableDuringTime)
@@ -175,14 +174,15 @@ static BOOL isTemporaryDisabled()
             : [disableFromDate compare:currentDate] == NSOrderedAscending
                 || [currentDate compare:disableToDate] == NSOrderedAscending
     ) {
-        isKeptDisabled = YES;
+        isKeptDisabled = keepDisabledAfterTime;
         return YES;
     }
 
     return NO;
 }
 
-BOOL passcodeChecksOut(NSString * passcode) 
+
+static BOOL passcodeChecksOut(NSString * passcode) 
 {
     return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
         && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
@@ -191,7 +191,7 @@ BOOL passcodeChecksOut(NSString * passcode)
         );
 }
 
-BOOL checkAttemptedUnlock(NSString * passcode)
+static BOOL checkAttemptedUnlock(NSString * passcode)
 {
     return passcode && truePasscode
     && useMagicPasscode 
@@ -319,6 +319,29 @@ BOOL isDeviceLocked()
 - (void)processAuthenticationRequest:(SBFAuthenticationRequest *)arg1 responder:(id)arg2;
 @end
 
+%group iOS9
+%hook SBLockScreenManager
+- (BOOL)attemptUnlockWithPasscode:(NSString *)passcode
+{
+    if (!isTweakEnabled)
+        return %orig;
+
+    if (checkAttemptedUnlock(passcode)) {
+        if(%orig(truePasscode)) {
+            unlockedWithSecondary();
+            return YES;
+        }
+    } 
+    if (%orig) {
+        unlockedWithPrimary(passcode);
+        return YES;
+    }
+
+    return NO;
+}
+%end
+%end
+
 %group iOS10
 %hook SBFUserAuthenticationController
 - (void)processAuthenticationRequest:(SBFAuthenticationRequest *)request responder:(id)arg2 
@@ -334,9 +357,9 @@ BOOL isDeviceLocked()
     
     SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
 
-    if (checkAttemptedUnlock(passcode)) {
-        [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES];
-        if (![SBLSManager isUILocked]) 
+    if (checkAttemptedUnlock(passcode)
+    && [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES]
+    ) {
             unlockedWithSecondary();
     } else {
         %orig;
@@ -349,28 +372,28 @@ BOOL isDeviceLocked()
 %end
 %end
 
-
 %group iOS11
 %hook SBLockScreenManager
-- (BOOL)_attemptUnlockWithPasscode:
-        (NSString *)passcode mesa:(BOOL)didUseBiometric 
-        finishUIUnlock:(BOOL)arg3 
-        completion:(/*^block*/id)arg4 
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode 
+                              mesa:(BOOL)arg2 
+                    finishUIUnlock:(BOOL)arg3 
+                        completion:(/*^block*/id)arg4 
 {
-    if (!isTweakEnabled || didUseBiometric)
+    if (!isTweakEnabled)
         return %orig;
 
-    BOOL ret;
     if (checkAttemptedUnlock(passcode)) {
-        ret = %orig(truePasscode, didUseBiometric, arg3, arg4);
-        if (!isDeviceLocked()) 
+        if (%orig(truePasscode, arg2, arg3, arg4)) {
             unlockedWithSecondary();
-    } else {
-        ret = %orig;
-        if (!isDeviceLocked())
-            unlockedWithPrimary(passcode);
+            return YES;
+        }
+    } 
+    if (%orig) {
+        unlockedWithPrimary(passcode);
+        return YES;
     }
-    return ret;
+    
+    return NO;
 }
 %end
 %end
@@ -451,12 +474,12 @@ BOOL isDeviceLocked()
 - (BOOL)headphonesPresent;
 @end
 
-BOOL isUsingHeadphones()
+static BOOL isUsingHeadphones()
 {
     return [[%c(VolumeControl) sharedVolumeControl] headphonesPresent];
 }
 
-BOOL isUsingWiFi()
+static BOOL isUsingWiFi()
 {
     if (!useGracePeriodOnWiFi)
         return NO;
@@ -479,7 +502,7 @@ BOOL isUsingWiFi()
 -(id)connectedDevices;
 @end
 
-BOOL isUsingBT()
+static BOOL isUsingBT()
 {
     if (useGracePeriodOnBT && allowedBTs) {
         NSArray * connectedDevices = 
@@ -496,11 +519,11 @@ BOOL isUsingBT()
 
 
 
-BOOL isInGrace()
+static BOOL isInGrace()
 {
     if (isTemporaryDisabled())
         return NO;
-    
+
     if (gracePeriodEnds 
     && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
         return YES;
@@ -645,9 +668,10 @@ static void passBySettingsChanged(
     CFNotificationCenterRef center, void * observer, 
     CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
-    NSDictionary * passByDict =   [   [NSDictionary alloc] 
-                                        initWithContentsOfFile:@PLIST_PATH
-                                    ]?: [NSDictionary new];
+    NSDictionary * passByDict =   
+        [   [NSDictionary alloc] 
+            initWithContentsOfFile:@PLIST_PATH
+        ]?: [NSDictionary new];
 
     isTweakEnabled          =   [[passByDict valueForKey:@"isEnabled"]              ?:@NO boolValue];
     savePasscode            =   [[passByDict valueForKey:@"savePasscode"]           ?:@NO boolValue];
@@ -655,22 +679,19 @@ static void passBySettingsChanged(
     showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
     use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
 
-    int gracePeriodUnit;
+
     useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO boolValue];
     gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0) intValue];
-    gracePeriodUnit         =   [[passByDict valueForKey:@"gracePeriodUnit"]        ?:@(1) intValue];
-    gracePeriod            *=   gracePeriodUnit;
+    gracePeriod            *=   [[passByDict valueForKey:@"gracePeriodUnit"]        ?:@(1) intValue];
 
     useGracePeriodOnWiFi    =   [[passByDict valueForKey:@"useGracePeriodOnWiFi"]   ?:@NO boolValue];
     gracePeriodOnWiFi       =   [[passByDict valueForKey:@"gracePeriodOnWiFi"]      ?:@(0) intValue];
-    gracePeriodUnit         =   [[passByDict valueForKey:@"gracePeriodUnitOnWiFi"]  ?:@(1) intValue];
-    gracePeriodOnWiFi      *=   gracePeriodUnit;
-
+    gracePeriodOnWiFi      *=   [[passByDict valueForKey:@"gracePeriodUnitOnWiFi"]  ?:@(1) intValue];
 
     useGracePeriodOnBT      =   [[passByDict valueForKey:@"useGracePeriodOnBT"]     ?:@NO boolValue];
     gracePeriodOnBT         =   [[passByDict valueForKey:@"gracePeriodOnBT"]        ?:@(0) intValue];
-    gracePeriodUnit         =   [[passByDict valueForKey:@"gracePeriodUnitOnBT"]    ?:@(1) intValue];
-    gracePeriodOnBT        *=   gracePeriodUnit;
+    gracePeriodOnBT        *=   [[passByDict valueForKey:@"gracePeriodUnitOnBT"]    ?:@(1) intValue];
+
 
     headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO boolValue];
 
@@ -834,9 +855,11 @@ static void setUUID()
 {
     %init;
     if (kCFCoreFoundationVersionNumber >= 1443.00)
-        %init(iOS11)
+        %init(iOS11);
+    else if (kCFCoreFoundationVersionNumber >= 1348.00)
+        %init(iOS10);
     else
-        %init(iOS10)
+        %init(iOS9);
 
     setDarwinNCObservers();
     setUUID();

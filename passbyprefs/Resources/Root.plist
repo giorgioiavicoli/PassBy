@@ -182,7 +182,7 @@
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
-			<string>gracePeriodUnitOnWifi</string>
+			<string>gracePeriodUnitOnWiFi</string>
 			<key>label</key>
 			<string>Timeout unit</string>
 			<key>validTitles</key>
