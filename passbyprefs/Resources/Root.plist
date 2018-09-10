@@ -420,6 +420,18 @@
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.passby</string>
 			<key>key</key>
+			<string>keepDisabledAfterTime</string>
+			<key>label</key>
+			<string>Keep disabled until next real unlock</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
 			<string>disableAlert</string>
 			<key>label</key>
 			<string>Disable "PassBy Enabled" alert</string>
@@ -437,14 +449,6 @@
 			<string>Reset Settings</string>
 			<key>action</key>
 			<string>resetSettings:</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSButtonCell</string>
-			<key>label</key>
-			<string>Manually set passcode</string>
-			<key>action</key>
-			<string>setPasscode:</string>
 		</dict>
 		<dict>
 			<key>cell</key>

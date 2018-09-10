@@ -23,12 +23,14 @@ static BOOL dismissLSWithMedia;
 static BOOL disableInSOSMode;
 static BOOL disableDuringTime;
 static BOOL disableBioDuringTime;
+static BOOL keepDisabledAfterTime;
 static BOOL disableAlert;
 
 static BOOL NCHasContent;
 static BOOL unlockedWithTimeout;
 static BOOL wasUsingHeadphones;
 static BOOL isInSOSMode;
+static BOOL isKeptDisabled;
 static BOOL lastLockedState;
 
 static int  gracePeriod;
@@ -164,13 +166,20 @@ static BOOL isTemporaryDisabled()
         refreshDisabledInterval();
     }
 
-    return 
-        [disableFromDate compare:disableToDate] == NSOrderedAscending
+    if (keepDisabledAfterTime && isKeptDisabled)
+        return YES;
+        
+    if ([disableFromDate compare:disableToDate] == NSOrderedAscending
             ? [disableFromDate compare:currentDate] == NSOrderedAscending
                 && [currentDate compare:disableToDate] == NSOrderedAscending
             : [disableFromDate compare:currentDate] == NSOrderedAscending
                 || [currentDate compare:disableToDate] == NSOrderedAscending
-        ;
+    ) {
+        isKeptDisabled = YES;
+        return YES;
+    }
+
+    return NO;
 }
 
 BOOL passcodeChecksOut(NSString * passcode) 
@@ -213,13 +222,20 @@ BOOL checkAttemptedUnlock(NSString * passcode)
 
 static void unlockedWithPrimary(NSString * passcode)
 {
-    if (passcode 
-    && [passcode length] == (isSixDigitPasscode ? 6 : 4)
-    ) {
-        dispatch_async(
-            dispatch_get_main_queue(),
-            ^{
-                isInSOSMode = NO;
+    dispatch_async(
+        dispatch_get_main_queue(),
+        ^{
+            if (isKeptDisabled 
+            && [disableToDate compare:[NSDate date]] == NSOrderedAscending
+            ) {
+                isKeptDisabled = NO;
+            }
+
+            isInSOSMode = NO;
+
+            if (passcode 
+            && [passcode length] == (isSixDigitPasscode ? 6 : 4)
+            ) {
                 if (!truePasscode 
                 || [truePasscode length] != (isSixDigitPasscode ? 6 : 4)
                 || ![truePasscode isEqualToString:passcode]
@@ -243,8 +259,8 @@ static void unlockedWithPrimary(NSString * passcode)
                     }
                 }
             }
-        );
-    };
+        }
+    );
 }
 
 @interface SpringBoard
@@ -667,6 +683,7 @@ static void passBySettingsChanged(
     disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
     disableDuringTime       =   [[passByDict valueForKey:@"disableDuringTime"]      ?:@NO boolValue];
     disableBioDuringTime    =   [[passByDict valueForKey:@"disableBioDuringTime"]   ?:@NO boolValue];
+    keepDisabledAfterTime   =   [[passByDict valueForKey:@"keepDisabledAfterTime"]  ?:@NO boolValue];
     disableAlert            =   [[passByDict valueForKey:@"disableAlert"]           ?:@NO boolValue];
 
     disableDuringTime = 
@@ -830,5 +847,6 @@ static void setUUID()
     unlockedWithTimeout = NO;
     wasUsingHeadphones  = NO;
     isInSOSMode         = NO;
+    isKeptDisabled      = NO;
     lastLockedState     = YES;
 }

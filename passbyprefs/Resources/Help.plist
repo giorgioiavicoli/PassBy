@@ -228,6 +228,16 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>Keep disabled until next real unlock</string>
+			<key>footerText</key>
+			<string>Keep auto-unlock and magic passcode disabled even after the time interval specified, until the next passcode unlock (or via Touch ID/Face ID, if not disabled)</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>		
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Disable "PassBy Enabled" alert</string>
 			<key>footerText</key>
 			<string>Disable alert after entering passcode for the first time (useful if you're not saving passcode over resprings)</string>
