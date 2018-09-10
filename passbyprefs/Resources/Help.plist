@@ -10,6 +10,16 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
+			<string>Important – how to enable</string>
+			<key>footerText</key>
+			<string>When first enabling the tweak, enter the passcode next time you unlock your device!</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
 			<string>Enable</string>
 			<key>footerText</key>
 			<string>Enables or disables all features of this tweak</string>
@@ -22,7 +32,7 @@
 			<key>label</key>
 			<string>Do not require passcode after respring</string>
 			<key>footerText</key>
-			<string>Saves passcode so that you don't need to enter it once every respring (although it still requires one authentication by either Touch ID/Face ID, true, or magic passcode). Your passcode will always be saved encrypted</string>
+			<string>Saves passcode so that you don't need to enter it once every respring (although it still requires one authentication by either Touch ID/Face ID, real passcode, or magic passcode). Your passcode will always be saved encrypted</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
@@ -230,7 +240,7 @@
 			<key>label</key>
 			<string>Keep disabled until next real unlock</string>
 			<key>footerText</key>
-			<string>Keep auto-unlock and magic passcode disabled even after the time interval specified, until the next passcode unlock (or via Touch ID/Face ID, if not disabled)</string>
+			<string>Keep auto-unlock and magic passcode disabled even after the time interval specified, until the next passcode unlock (or via Touch ID/Face ID, if not disabled). The tweak will then only be reenabled by a login AFTER the time interval </string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>		
