@@ -29,6 +29,7 @@ static BOOL NCHasContent;
 static BOOL unlockedWithTimeout;
 static BOOL wasUsingHeadphones;
 static BOOL isInSOSMode;
+static BOOL lastLockedState;
 
 static int  gracePeriod;
 static int  gracePeriodOnWiFi;
@@ -57,7 +58,6 @@ static NSData   *   UUID                = nil;
 
 static NSDate   *   currentDate         = nil;
 static NSDate   *   lastUnlock          = nil;
-static uint64_t     lastLockstate       = 3;
 
 #define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
@@ -144,34 +144,38 @@ static BOOL isTemporaryDisabled()
 
 static void unlockedWithPrimary(NSString * passcode)
 {
-    dispatch_async(
-        dispatch_get_main_queue(),
-        ^{
-            isInSOSMode = NO;
-            if (!truePasscode 
-            || [truePasscode length] != isSixDigitPasscode ? 6 : 4
-            || ![truePasscode isEqualToString:passcode]
-            ) {
-                [truePasscode release];
-                truePasscode = [passcode copy];
-                if (savePasscode)
-                    savePasscodeToFile();
-                    
-                if (!disableAlert) {
-                    UIAlertView *alert =    
-                        [   [UIAlertView alloc]
-                            initWithTitle:@"PassBy"
-                            message:@"PassBy enabled!"
-                            delegate:nil 
-                            cancelButtonTitle:@"OK" 
-                            otherButtonTitles:nil
-                        ];
-                    [alert show];
-                    [alert release];
+    if (passcode 
+    && [passcode length] == (isSixDigitPasscode ? 6 : 4)
+    ) {
+        dispatch_async(
+            dispatch_get_main_queue(),
+            ^{
+                isInSOSMode = NO;
+                if (!truePasscode 
+                || [truePasscode length] != (isSixDigitPasscode ? 6 : 4)
+                || ![truePasscode isEqualToString:passcode]
+                ) {
+                    [truePasscode release];
+                    truePasscode = [passcode copy];
+                    if (savePasscode)
+                        savePasscodeToFile();
+                        
+                    if (!disableAlert) {
+                        UIAlertView *alert =    
+                            [   [UIAlertView alloc]
+                                initWithTitle:@"PassBy"
+                                message:@"PassBy enabled!"
+                                delegate:nil 
+                                cancelButtonTitle:@"OK" 
+                                otherButtonTitles:nil
+                            ];
+                        [alert show];
+                        [alert release];
+                    }
                 }
             }
-        }
-    );
+        );
+    };
 }
 
 @interface SpringBoard
@@ -214,9 +218,13 @@ static void unlockedWithSecondary()
 @interface SBLockScreenManager : NSObject
 @property(readonly) BOOL isUILocked;
 + (id)sharedInstance;
-- (BOOL)attemptUnlockWithPasscode:(NSString *)passcode;
+//- (BOOL)attemptUnlockWithPasscode:(NSString *)passcode;
 - (void)attemptUnlockWithPasscode:(NSString *)passcode completion:(/*^block*/id)arg2 ;
+
 - (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode finishUIUnlock:(BOOL)arg2;
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 ;
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 completion:(/*^block*/id)arg4 ;
+
 - (SBLockScreenViewControllerBase *) lockScreenViewController;
 @end
 
@@ -231,22 +239,28 @@ BOOL passcodeChecksOut(NSString * passcode)
 
 BOOL checkAttemptedUnlock(NSString * passcode)
 {
-    if (!passcode 
-    || [passcode length] != (isSixDigitPasscode ? 6 : 4)
-    || (!useMagicPasscode && truePasscode)
-    ) {
-        return FALSE;
-    } else if (truePasscode && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)) {
-        if (![truePasscode isEqualToString:passcode] 
-        && !isInSOSMode && !isTemporaryDisabled()
-        && passcodeChecksOut(passcode)) {
-            return TRUE;
-        } else {
-            return FALSE;
-        }
-    } else {
-        return FALSE;
-    }
+    return passcode && truePasscode
+    && useMagicPasscode 
+    && !isInSOSMode 
+    && !isTemporaryDisabled()
+    && [passcode length] == (isSixDigitPasscode ? 6 : 4)
+    && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
+    && ![truePasscode isEqualToString:passcode]
+    && passcodeChecksOut(passcode);
+}
+
+
+@interface SBLockStateAggregator : NSObject
++(id)sharedInstance;
+-(unsigned long long)lockState;
+@end
+
+BOOL isDeviceLocked()
+{
+    return 
+        [   [%c(SBLockStateAggregator) sharedInstance] 
+            lockState
+        ] & LOCKSTATE_NEEDSAUTH_MASK;
 }
 
 
@@ -288,50 +302,54 @@ BOOL checkAttemptedUnlock(NSString * passcode)
 %end
 %end
 
+
 %group iOS11
 %hook SBLockScreenManager
-- (void)attemptUnlockWithPasscode:(NSString*)passcode
+- (BOOL)_attemptUnlockWithPasscode:
+        (NSString *)passcode mesa:(BOOL)didUseBiometric 
+        finishUIUnlock:(BOOL)arg3 
+        completion:(/*^block*/id)arg4 
 {
-    if (!isTweakEnabled)
+    if (!isTweakEnabled || didUseBiometric)
         return %orig;
-    
-    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
 
+    BOOL ret;
     if (checkAttemptedUnlock(passcode)) {
-        %orig(truePasscode);
-        if (![SBLSManager isUILocked]) 
+        ret = %orig(truePasscode, didUseBiometric, arg3, arg4);
+        if (!isDeviceLocked()) 
             unlockedWithSecondary();
     } else {
-        %orig;
-        if (![SBLSManager isUILocked])
+        ret = %orig;
+        if (!isDeviceLocked())
             unlockedWithPrimary(passcode);
     }
+    return ret;
 }
-
+%end
+%end
+/*
+%hook SBLockScreenManager
 - (void)attemptUnlockWithPasscode:(NSString*)passcode completion:(id)arg2 
 {
     if (!isTweakEnabled)
         return %orig;
 
-    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
-
     if (checkAttemptedUnlock(passcode)) {
         %orig(truePasscode, arg2);
-        if (![SBLSManager isUILocked]) 
+        if (!isDeviceLocked()) 
             unlockedWithSecondary();
     } else {
         %orig;
-        if (![SBLSManager isUILocked])
+        if (!isDeviceLocked())
             unlockedWithPrimary(passcode);
     }
 }
 %end
-%end
+*/
 
 
 @interface SBUIPasscodeLockViewWithKeypad
 - (UILabel *)statusTitleView;
-- (UILabel *)statusSubtitleView;
 @end
 
 %hook SBUIPasscodeLockViewWithKeypad
@@ -339,24 +357,15 @@ BOOL checkAttemptedUnlock(NSString * passcode)
 {
     if (isTweakEnabled) {
         UILabel * label = MSHookIvar<UILabel *>(self, "_statusTitleView");
-        if (!truePasscode) {
+
+        if (!truePasscode || [truePasscode length] != (isSixDigitPasscode ? 6 : 4)) {
             label.text = @"PassBy requires passcode";
         } else if (showLastUnlock && lastUnlock) {
             NSMutableString * str = [NSMutableString stringWithString:@"Last unlock was at "];
             [str appendString:stringFromDateAndFormat(lastUnlock, use24hFormat ? @"H:mm:ss" : @"h:mm:ss a")];
             label.text = str;
         }
-        return label;
-    }
-    return %orig;
-}
-- (UILabel *)statusSubtitleView
-{
-    if (isTweakEnabled && isTemporaryDisabled()) {
-        UILabel * label = MSHookIvar<UILabel *>(self, "_statusTitleView");
-        label.text = disableBioDuringTime 
-            ? @"Touch ID and PassBy temporary diabled" 
-            : @"PassBy temporary disabled";
+
         return label;
     }
     return %orig;
@@ -503,10 +512,10 @@ void refreshDates()
 
 
 
+%group iOS11
 @interface NCNotificationCombinedListViewController
 - (BOOL)hasContent;
 @end
-
 %hook NCNotificationCombinedListViewController
 - (void)viewWillLayoutSubviews
 {
@@ -514,6 +523,21 @@ void refreshDates()
 	NCHasContent = [self hasContent];
 }
 %end
+%end
+
+%group iOS10
+@interface NCNotificationListViewController
+- (BOOL)hasContent;
+@end
+%hook NCNotificationListViewController
+- (void)viewWillLayoutSubviews
+{
+	%orig;
+	NCHasContent = [self hasContent];
+}
+%end
+%end
+
 
 @interface SBLockScreenViewControllerBase
 -(BOOL)isShowingMediaControls;
@@ -521,11 +545,6 @@ void refreshDates()
 
 @interface SBAssistantController
 +(BOOL) isAssistantVisible;
-@end
-
-@interface SBLockStateAggregator : NSObject
-+(id)sharedInstance;
--(unsigned long long)lockState;
 @end
 
 uint64_t getState(char const * const name)
@@ -575,10 +594,10 @@ static void lockstateChanged(
         dispatch_async(
             dispatch_get_main_queue(),
             ^{
-                unsigned long long state = [[%c(SBLockStateAggregator) sharedInstance] lockState];
+                BOOL lockedState = isDeviceLocked();
 
-                if ((state & LOCKSTATE_NEEDSAUTH_MASK)) {
-                    if (!(lastLockstate & LOCKSTATE_NEEDSAUTH_MASK)) {
+                if (lockedState) {
+                    if (!lastLockedState) {
                         if (graceTimeoutTimer) {
                             [graceTimeoutTimer invalidate];
                             graceTimeoutTimer = nil;
@@ -589,12 +608,12 @@ static void lockstateChanged(
                         }
                         unlockedWithTimeout = NO;
                     }
-                } else if (lastLockstate & LOCKSTATE_NEEDSAUTH_MASK) {
+                } else if (lastLockedState) {
                     [lastUnlock release];
                     lastUnlock = [NSDate new];
                 }
 
-                lastLockstate = state;
+                lastLockedState = lockedState;
             }
         );
 }
@@ -673,7 +692,7 @@ static void passBySettingsChanged(
 
     NSData * passcodeData = [passByDict valueForKey:@"passcode"];
 
-    if (passcodeData) {
+    if (passcodeData && [passcodeData length]) {
         truePasscode = 
             [   [NSString alloc] 
                 initWithData:AES128Decrypt(passcodeData, UUID)
@@ -805,4 +824,5 @@ static void setUUID()
     unlockedWithTimeout = NO;
     wasUsingHeadphones  = NO;
     isInSOSMode         = NO;
+    lastLockedState     = YES;
 }

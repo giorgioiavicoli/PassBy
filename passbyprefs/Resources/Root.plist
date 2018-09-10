@@ -436,6 +436,14 @@
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
+			<string>Manually set passcode</string>
+			<key>action</key>
+			<string>setPasscode:</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
 			<string>Send feedback</string>
 			<key>action</key>
 			<string>sendFeedback:</string>

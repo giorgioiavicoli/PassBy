@@ -1,6 +1,8 @@
 #import <notify.h>
 #import <MessageUI/MessageUI.h>
+
 #include "PassByRootListController.h"
+#include "../crypto.h"
 
 #define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
@@ -63,11 +65,79 @@
     [self reloadSpecifiers];
 }
 
+-(void)setPasscode:(id)arg1 
+{
+    UIAlertController * alertController = 
+        [UIAlertController alertControllerWithTitle:@"Enter device passcode"
+            message:@"Useful for those on iOS 11.4, wehre reading it off the lockscreen is currently not supported"
+            preferredStyle:UIAlertControllerStyleAlert
+        ];
+
+    [alertController 
+        addTextFieldWithConfigurationHandler: ^(UITextField * textField)
+        { 
+            [textField setPlaceholder:@"Passcode"];
+        }
+    ];
+
+    UIAlertAction * yesAction = 
+        [UIAlertAction 
+            actionWithTitle: @"Confirm" 
+            style: UIAlertActionStyleDefault
+            handler: ^(UIAlertAction * action) 
+            {
+                unsigned char * buffer = (unsigned char *) malloc(16);
+                [   [[UIDevice currentDevice] identifierForVendor] 
+                    getUUIDBytes:buffer
+                ];
+                NSData * UUID = [    [NSData alloc] 
+                            initWithBytes:buffer length:16
+                ];
+                free(buffer);
+  
+                NSData * passcodeData =
+                    AES128Encrypt(
+                        [   [[alertController textFields][0] text]
+                            dataUsingEncoding:NSUTF8StringEncoding
+                        ], UUID
+                    );
+                [UUID release];
+
+                NSMutableDictionary * settings =    
+                    [   [NSMutableDictionary alloc] 
+                        initWithContentsOfFile:@PLIST_PATH
+                    ] ?:[NSMutableDictionary new];
+
+                [settings setObject:passcodeData forKey:@"passcode"];
+                [settings writeToFile:@(PLIST_PATH) atomically:YES];
+                [settings release];
+                [passcodeData release];
+                notify_post("com.giorgioiavicoli.passby/reload");
+            }
+        ];
+        
+    UIAlertAction * noAction = 
+        [UIAlertAction 
+            actionWithTitle:@"Cancel" 
+            style:UIAlertActionStyleCancel
+            handler:nil
+        ];
+
+    [alertController addAction:yesAction];
+    [alertController addAction:noAction];
+    [self 
+        presentViewController:alertController 
+        animated:YES 
+        completion:nil
+    ];
+}
+
 -(void)resetSettings:(id)arg1 
 {
     [@{} writeToFile:@PLIST_PATH        atomically:YES];
     [@{} writeToFile:@WIFI_PLIST_PATH   atomically:YES];
-    [@{} writeToFile:@BT_PLIST_PATH   atomically:YES];
+    [@{} writeToFile:@BT_PLIST_PATH     atomically:YES];
+	notify_post("com.giorgioiavicoli.passby/reload");
     [self reloadSpecifiers];
 }
 
@@ -146,9 +216,10 @@ NSString * SHA1(NSString * str);
 {
 	if (!_specifiers) {
         NSMutableArray * specifiers = [NSMutableArray new];
-        NSDictionary * networksList =   [   [NSDictionary alloc] 
-                                            initWithContentsOfFile:@WIFI_PLIST_PATH
-                                        ] ?: [NSDictionary new];
+        NSDictionary * networksList =   
+            [   [NSDictionary alloc] 
+                initWithContentsOfFile:@WIFI_PLIST_PATH
+            ] ?: [NSDictionary new];
 
         WiFiManagerRef manager = WiFiManagerClientCreate(kCFAllocatorDefault, 0);
         if (manager) {
@@ -198,7 +269,7 @@ NSString * SHA1(NSString * str);
                                         ] ?:[NSMutableDictionary new];
     [settings 
         setObject:value 
-        forKey:[SHA1([specifier propertyForKey:@"key"]) autorelease]
+        forKey:SHA1([specifier propertyForKey:@"key"])
     ];
     [settings writeToFile:@(WIFI_PLIST_PATH) atomically:YES];
     [settings release];
@@ -220,9 +291,9 @@ NSString * SHA1(NSString * str);
                 initWithContentsOfFile:@BT_PLIST_PATH
             ] ?: [NSDictionary new];
 
-        BluetoothManager * bluetoothManager = [BluetoothManager sharedInstance];
+        BluetoothManager *  bluetoothManager    = [BluetoothManager sharedInstance];
+        NSArray          *  pairedDevices       = [bluetoothManager pairedDevices];
 
-        NSArray * pairedDevices = [bluetoothManager pairedDevices];
         if ([pairedDevices count]) {
             for (BluetoothDevice * bluetoothDevice in pairedDevices) {
                 NSString * name = [bluetoothDevice name];
@@ -270,7 +341,7 @@ NSString * SHA1(NSString * str);
                                         ] ?:[NSMutableDictionary new];
     [settings 
         setObject:value 
-        forKey:[SHA1([specifier propertyForKey:@"key"]) autorelease]
+        forKey:SHA1([specifier propertyForKey:@"key"])
     ];
     [settings writeToFile:@BT_PLIST_PATH atomically:YES];
     [settings release];
@@ -333,24 +404,3 @@ NSString * SHA1(NSString * str);
 	notify_post("com.giorgioiavicoli.passby/reload");
 }
 @end
-
-
-#import <CommonCrypto/CommonDigest.h>
-NSString * SHA1(NSString * str)
-{
-    NSMutableData * hashData = [[NSMutableData alloc] initWithLength:CC_SHA1_DIGEST_LENGTH];
-    NSData * data = [str dataUsingEncoding:NSUTF8StringEncoding];
-
-    unsigned char * hashBytes = (unsigned char *)[hashData mutableBytes];
-
-    if (CC_SHA1([data bytes], [data length], hashBytes)) {
-        NSUInteger len  = [hashData length];
-        NSMutableString * hash  = [NSMutableString stringWithCapacity:(len * 2)];
-        
-        for (int i = 0; i < len; ++i)
-            [hash appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)hashBytes[i]]];
-        
-        return [[NSString alloc] initWithString:hash];
-    }
-    return nil;
-}

@@ -1,7 +1,7 @@
 Package: com.giorgioiavicoli.passby
 Name: PassBy
-Depends: mobilesubstrate
-Version: 1.4b
+Depends: mobilesubstrate, preferenceloader
+Version: 1.4b3
 Architecture: iphoneos-arm
 Description: Bypass passcode in many ways
 Maintainer: Giorgio Iavicoli
