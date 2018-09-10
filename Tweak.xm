@@ -122,7 +122,7 @@ static void updateGracePeriods()
     wasUsingHeadphones = isUsingHeadphones();
 }
 
-void refreshDisabledInterval()
+static void refreshDisabledInterval()
 {
     [currentDate        release];
     [disableFromDate    release];
@@ -637,7 +637,7 @@ static void passBySettingsChanged(
     showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
     use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
 
-    int unit;
+    int gracePeriodUnit;
     useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO boolValue];
     gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0) intValue];
     gracePeriodUnit         =   [[passByDict valueForKey:@"gracePeriodUnit"]        ?:@(1) intValue];
