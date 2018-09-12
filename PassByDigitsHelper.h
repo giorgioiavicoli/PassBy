@@ -13,6 +13,18 @@ NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
     return string;
 }
 
+NSDate * dateFromStringAndFormat(NSString * string, NSString * format)
+{
+    NSDateFormatter *formatter = [NSDateFormatter new];
+    [formatter setLocale:[NSLocale currentLocale]];
+    [formatter setTimeStyle:NSDateFormatterShortStyle];
+    [formatter setDateFormat:format];
+    
+    NSDate * date = [formatter dateFromString:string];
+    [formatter release];
+    return date;
+}
+
 BOOL evalDateTimeHelper(NSString * format, char d0, char d1, BOOL reversed)
 {
     if (reversed) {

@@ -285,9 +285,10 @@ NSString * SHA1(NSString * str);
 
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier 
 {
-    NSMutableDictionary * settings =    [  [NSMutableDictionary alloc] 
-                                            initWithContentsOfFile:@BT_PLIST_PATH
-                                        ] ?:[NSMutableDictionary new];
+    NSMutableDictionary * settings =    
+        [  [NSMutableDictionary alloc] 
+            initWithContentsOfFile:@BT_PLIST_PATH
+        ] ?:[NSMutableDictionary new];
     [settings 
         setObject:value 
         forKey:SHA1([specifier propertyForKey:@"key"])

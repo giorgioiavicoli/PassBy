@@ -14,6 +14,8 @@ static BOOL useMagicPasscode;
 static BOOL useGracePeriod;
 static BOOL useGracePeriodOnWiFi;
 static BOOL useGracePeriodOnBT;
+static BOOL allowBTGPWhileLocked;
+static BOOL allowWiFiGPWhileLocked;
 static BOOL headphonesAutoUnlock;
 
 static BOOL showLastUnlock;
@@ -64,6 +66,7 @@ static NSDate   *   lastUnlock          = nil;
 #define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
 #define BT_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
+#define GP_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbygp.plist"
 
 #define LOGLINE HBLogDebug(@"*g* logged at %d : %s", __LINE__, __FUNCTION__)
 
@@ -398,6 +401,7 @@ BOOL isDeviceLocked()
 %end
 
 
+
 @interface VolumeControl
 + (id)sharedVolumeControl;
 - (BOOL)headphonesPresent;
@@ -408,17 +412,35 @@ static BOOL isUsingHeadphones()
     return [[%c(VolumeControl) sharedVolumeControl] headphonesPresent];
 }
 
+
+@interface SBWiFiManager : NSObject
+- (void)_linkDidChange;
+@end
+
 static BOOL isUsingWiFi()
 {
     if (!useGracePeriodOnWiFi)
         return NO;
 
-    NSString * SSID = ((NSDictionary *)CNCopyCurrentNetworkInfo(CFSTR("en0"))) [@"SSID"];
+    NSString * SSID = 
+        ((NSDictionary *)
+            CNCopyCurrentNetworkInfo(CFSTR("en0"))
+        ) [@"SSID"];
+
     return 
         SSID && [SSID length]
         && allowedSSIDs 
         && [allowedSSIDs containsObject:SHA1(SSID)];
 }
+
+%hook SBWiFiManager
+- (void)_linkDidChange
+{
+    %orig;
+    if (allowWiFiGPWhileLocked)
+        updateWiFiGracePeriod();
+}
+%end
 
 @interface BluetoothDevice : NSObject
 -(NSString *)name;
@@ -429,6 +451,7 @@ static BOOL isUsingWiFi()
 @interface BluetoothManager : NSObject
 +(id)sharedInstance;
 -(id)connectedDevices;
+-(void)_connectedStatusChanged;
 @end
 
 static BOOL isUsingBT()
@@ -445,6 +468,15 @@ static BOOL isUsingBT()
     }   }   }
     return NO;
 }
+
+%hook BluetoothManager
+-(void)_connectedStatusChanged
+{
+    %orig;
+    if (allowBTGPWhileLocked)
+        updateBTGracePeriod();
+}
+%end
 
 
 
@@ -557,6 +589,8 @@ static void lockstateChanged(
                             invalidateAllGracePeriods();
                         } else {
                             updateAllGracePeriods();
+                            if (savePasscode)
+                                saveGracePeriods();
                         }
                         unlockedWithTimeout = NO;
                     }
@@ -569,7 +603,6 @@ static void lockstateChanged(
             }
         );
 }
-
 
 
 
@@ -596,10 +629,12 @@ static void passBySettingsChanged(
     useGracePeriodOnWiFi    =   [[passByDict valueForKey:@"useGracePeriodOnWiFi"]   ?:@NO boolValue];
     gracePeriodOnWiFi       =   [[passByDict valueForKey:@"gracePeriodOnWiFi"]      ?:@(0) intValue];
     gracePeriodOnWiFi      *=   [[passByDict valueForKey:@"gracePeriodUnitOnWiFi"]  ?:@(1) intValue];
+    allowWiFiGPWhileLocked  =   [[passByDict valueForKey:@"allowWiFiGPWhileLocked"] ?:@NO boolValue];
 
     useGracePeriodOnBT      =   [[passByDict valueForKey:@"useGracePeriodOnBT"]     ?:@NO boolValue];
     gracePeriodOnBT         =   [[passByDict valueForKey:@"gracePeriodOnBT"]        ?:@(0) intValue];
     gracePeriodOnBT        *=   [[passByDict valueForKey:@"gracePeriodUnitOnBT"]    ?:@(1) intValue];
+    allowBTGPWhileLocked    =   [[passByDict valueForKey:@"allowBTGPWhileLocked"]   ?:@NO boolValue];
 
 
     headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO boolValue];
@@ -763,6 +798,7 @@ static void setUUID()
 %ctor 
 {
     %init;
+
     if (kCFCoreFoundationVersionNumber >= 1443.00)
         %init(iOS11);
     else if (kCFCoreFoundationVersionNumber >= 1348.00)
@@ -775,10 +811,14 @@ static void setUUID()
 
     passBySettingsChanged(NULL, NULL, NULL, NULL, NULL);
     passByWiFiListChanged(NULL, NULL, NULL, NULL, NULL);
+    passByBTListChanged(NULL, NULL, NULL, NULL, NULL);
 
     unlockedWithTimeout = NO;
     wasUsingHeadphones  = NO;
     isInSOSMode         = NO;
     isKeptDisabled      = NO;
     lastLockedState     = YES;
+
+    if (savePasscode)
+        loadGracePeriods();
 }

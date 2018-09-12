@@ -58,6 +58,120 @@ static void invalidateAllGracePeriods()
     wasUsingHeadphones = NO;
 }
 
+static void saveGracePeriods()
+{
+    NSMutableDictionary * gracePeriods =    
+        [   [NSMutableDictionary alloc] 
+            initWithContentsOfFile:@GP_PLIST_PATH
+        ] ?:[NSMutableDictionary new];
+
+    if (useGracePeriod && gracePeriodEnds) {
+        NSData * GPData =
+            AES128Encrypt(
+                [stringFromDateAndFormat(gracePeriodEnds, @"ddMMyyyyHHmmss")
+                    dataUsingEncoding:NSUTF8StringEncoding
+                ], UUID
+            );
+        [gracePeriods 
+            setObject:GPData
+            forKey:@"gp"
+        ];
+        [GPData release];
+    }
+
+    if (useGracePeriodOnWiFi && gracePeriodWiFiEnds) {
+        NSData * WiFiGPData =
+            AES128Encrypt(
+                [stringFromDateAndFormat(gracePeriodWiFiEnds, @"ddMMyyyyHHmmss")
+                    dataUsingEncoding:NSUTF8StringEncoding
+                ], UUID
+            );
+        [gracePeriods 
+            setObject:WiFiGPData
+            forKey:@"gpwifi"
+        ];
+        [WiFiGPData release];
+    }
+
+    if (useGracePeriodOnBT && gracePeriodBTEnds) {
+        NSData * BTGPData =
+            AES128Encrypt(
+                [stringFromDateAndFormat(gracePeriodBTEnds, @"ddMMyyyyHHmmss")
+                    dataUsingEncoding:NSUTF8StringEncoding
+                ], UUID
+            );
+        [gracePeriods 
+            setObject:BTGPData
+            forKey:@"gpbt"
+        ];
+        [BTGPData release];
+    }
+
+    [gracePeriods writeToFile:@(GP_PLIST_PATH) atomically:YES];
+    [gracePeriods release];
+}
+
+static void loadGracePeriods()
+{
+    NSDictionary * gracePeriods =    
+        [   [NSDictionary alloc] 
+            initWithContentsOfFile:@GP_PLIST_PATH
+        ];
+    
+    if (gracePeriods) {
+        NSData * GPData = [gracePeriods valueForKey:@"gp"];
+        if (useGracePeriod && GPData) {
+            NSString * GPString =
+                [   [NSString alloc] 
+                    initWithData:AES128Decrypt(GPData, UUID)
+                    encoding:NSUTF8StringEncoding
+                ];
+
+            gracePeriodEnds = 
+                [   dateFromStringAndFormat(GPString, @"ddMMyyyyHHmmss")
+                    copy
+                ];
+
+            [GPString release];
+        }
+
+        NSData * WiFiGPData = [gracePeriods valueForKey:@"gpwifi"];
+        if (useGracePeriod && WiFiGPData) {
+            NSString * WiFiGPString =
+                [   [NSString alloc] 
+                    initWithData:AES128Decrypt(WiFiGPData, UUID)
+                    encoding:NSUTF8StringEncoding
+                ];
+
+            gracePeriodEnds = 
+                [   dateFromStringAndFormat(WiFiGPString, @"ddMMyyyyHHmmss")
+                    copy
+                ];
+
+            [WiFiGPString release];
+        }
+
+        NSData * BTGPData = [gracePeriods valueForKey:@"gp"];
+        if (useGracePeriod && BTGPData) {
+            NSString * BTPString =
+                [   [NSString alloc] 
+                    initWithData:AES128Decrypt(BTGPData, UUID)
+                    encoding:NSUTF8StringEncoding
+                ];
+
+            gracePeriodEnds = 
+                [   dateFromStringAndFormat(BTPString, @"ddMMyyyyHHmmss")
+                    copy
+                ];
+
+            [BTPString release];
+        }
+    }
+    
+    [gracePeriods release];
+
+}
+
 static void refreshDisabledInterval()
 {
     [currentDay         release];

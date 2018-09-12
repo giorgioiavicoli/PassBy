@@ -82,7 +82,17 @@
 			<key>label</key>
 			<string>Use Wi-Fi auto-unlock</string>
 			<key>footerText</key>
-			<string>Bypasses the passcode lock within a certain period when connected to specific Wi-Fi networks, prior to locking</string>
+			<string>Bypasses the passcode lock within a certain period when connected to specific Wi-Fi networks</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Even when joined while locked</string>
+			<key>footerText</key>
+			<string>Enables auto-unlock even if a WiFi network is joined while the phone is locked. Otherwise, the device has to be unlocked while connected to enable this feature</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
@@ -92,7 +102,17 @@
 			<key>label</key>
 			<string>Use Bluetooth auto-unlock</string>
 			<key>footerText</key>
-			<string>Bypasses the passcode lock within a certain period when connected to specific Bluetooth devices, prior to locking</string>
+			<string>Bypasses the passcode lock within a certain period when connected to specific Bluetooth devices</string>
+			<key>footerAlignment</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Even when connected while locked</string>
+			<key>footerText</key>
+			<string>Enables auto-unlock even if a Bluetooth device connects while the phone is locked. Otherwise, the device has to be unlocked while connected to enable this feature</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
@@ -240,7 +260,7 @@
 			<key>label</key>
 			<string>Keep disabled until next real unlock</string>
 			<key>footerText</key>
-			<string>Keep auto-unlock and magic passcode disabled even after the time interval specified, until the next passcode unlock (or via Touch ID/Face ID, if not disabled). The tweak will then only be reenabled by a login AFTER the time interval </string>
+			<string>Keep auto-unlock and magic passcode disabled even after the time interval specified, until the next passcode unlock (or via Touch ID/Face ID, if not disabled). The tweak will then be reenabled only by a login AFTER the time interval </string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>		

@@ -172,6 +172,18 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>allowWiFiGPWhileLocked</string>
+			<key>label</key>
+			<string>Even when joined while locked</string>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSEditTextCell</string>
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.passby</string>
@@ -233,6 +245,18 @@
 			<string>useGracePeriodOnBT</string>
 			<key>label</key>
 			<string>Use Bluetooth auto-unlock</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>allowBTGPWhileLocked</string>
+			<key>label</key>
+			<string>Even when connected while locked</string>
 		</dict>
 		<dict>
 			<key>cell</key>
