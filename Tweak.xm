@@ -138,6 +138,13 @@ static BOOL checkAttemptedUnlock(NSString * passcode)
 - (SBLockScreenViewControllerBase *) lockScreenViewController;
 @end
 
+static void unlockDevice(BOOL finishUIUnlock)
+{
+    [   [%c(SBLockScreenManager) sharedInstance] 
+        _attemptUnlockWithPasscode:truePasscode 
+        finishUIUnlock: finishUIUnlock
+    ];
+}
 
 static void unlockedWithPrimary(NSString * passcode)
 {
@@ -555,15 +562,13 @@ static void displayStatusChanged(
                 && isInGrace()
                 && ([[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
                 ) {
-                    [   [%c(SBLockScreenManager) sharedInstance] 
-                        _attemptUnlockWithPasscode:truePasscode 
-                        finishUIUnlock: dismissLS 
-                                        && !NCHasContent 
-                                        && (dismissLSWithMedia || ![[   [%c(SBLockScreenManager) sharedInstance] 
-                                                                        lockScreenViewController
-                                                                    ] isShowingMediaControls])
-                                        && ![%c(SBAssistantController) isAssistantVisible]
-                    ];
+                    unlockDevice(   dismissLS 
+                                && !NCHasContent 
+                                && (dismissLSWithMedia || ![[   [%c(SBLockScreenManager) sharedInstance] 
+                                                                lockScreenViewController
+                                                            ] isShowingMediaControls])
+                                && ![%c(SBAssistantController) isAssistantVisible]
+                    );
                 }
             }
         );
@@ -795,6 +800,8 @@ static void setUUID()
     free(buffer);
 }
 
+#include "ActivatorIntegrationHelper.h"
+
 %ctor 
 {
     %init;
@@ -821,4 +828,13 @@ static void setUUID()
 
     if (savePasscode)
         loadGracePeriods();
+
+    dlopen("/usr/lib/libactivator.dylib", RTLD_LAZY);
+
+    if (objc_getClass("LAActivator")) {
+        [   [LAActivator sharedInstance] 
+            registerListener:[[PassByListener new] retain]
+            forName:@"com.giorgioiavicoli.passby"
+        ];
+    }
 }
