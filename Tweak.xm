@@ -39,7 +39,7 @@ static int  gracePeriodOnBT;
 static int  digitsGracePeriod;
 static int  timeShift;
 
-#include "PassByHelper.h"
+#include "PassByDigitsHelper.h"
 static struct Digits first, second, last;
 static struct Time disableFromTime, disableToTime;
 
@@ -65,11 +65,15 @@ static NSDate   *   lastUnlock          = nil;
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
 #define BT_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
 
+#define LOGLINE HBLogDebug(@"*g* logged at %d : %s", __LINE__, __FUNCTION__)
+
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
 static BOOL isUsingHeadphones();
 static BOOL isUsingWiFi();
 static BOOL isUsingBT();
+
+#include "PassByGracePeriodHelper.h"
 
 static void savePasscodeToFile()
 {
@@ -93,94 +97,6 @@ static void savePasscodeToFile()
     [passByDict release];
     [passcodeData release];
 }
-
-static void updateGracePeriods()
-{
-    [gracePeriodEnds release];
-    [gracePeriodWiFiEnds release];
-    [gracePeriodBTEnds release];
-
-    gracePeriodEnds = 
-        useGracePeriod 
-            ? (gracePeriod
-                ? [[[NSDate new] dateByAddingTimeInterval: gracePeriod] retain]
-                : [[NSDate distantFuture] copy]
-            ) : nil;
-
-    gracePeriodWiFiEnds = 
-        useGracePeriodOnWiFi && isUsingWiFi()
-            ? (gracePeriodOnWiFi 
-                ? [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnWiFi] retain]
-                : [[NSDate distantFuture] copy]
-            ) : nil;
-    
-    gracePeriodBTEnds = 
-        useGracePeriodOnBT && isUsingBT()
-            ? (gracePeriodOnBT
-                ? [[[NSDate new] dateByAddingTimeInterval: gracePeriodOnBT] retain]
-                : [[NSDate distantFuture] copy]
-            ) : nil;
-    
-    wasUsingHeadphones = isUsingHeadphones();
-}
-
-static void refreshDisabledInterval()
-{
-    [currentDay         release];
-    [disableFromDate    release];
-    [disableToDate      release];
-
-    currentDay = [NSDate new];
-
-    disableFromDate = 
-        [   [NSCalendar currentCalendar] 
-            dateBySettingHour:  disableFromTime.hours
-            minute:             disableFromTime.minutes
-            second:0
-            ofDate:currentDay
-            options:NSCalendarMatchFirst
-        ];
-    disableToDate = 
-        [   [NSCalendar currentCalendar] 
-            dateBySettingHour:  disableToTime.hours
-            minute:             disableToTime.minutes
-            second:0
-            ofDate:currentDay
-            options:NSCalendarMatchFirst
-        ];
-}
-
-static BOOL isTemporaryDisabled()
-{
-    if (!disableDuringTime)
-        return NO;
-    
-    NSDate * currentDate = [NSDate date];
-
-    if (
-    ![  [NSCalendar currentCalendar] 
-        isDate:currentDate
-        inSameDayAsDate:currentDay
-    ]) {
-        refreshDisabledInterval();
-    }
-
-    if (keepDisabledAfterTime && isKeptDisabled)
-        return YES;
-        
-    if ([disableFromDate compare:disableToDate] == NSOrderedAscending
-            ? [disableFromDate compare:currentDate] == NSOrderedAscending
-                && [currentDate compare:disableToDate] == NSOrderedAscending
-            : [disableFromDate compare:currentDate] == NSOrderedAscending
-                || [currentDate compare:disableToDate] == NSOrderedAscending
-    ) {
-        isKeptDisabled = keepDisabledAfterTime;
-        return YES;
-    }
-
-    return NO;
-}
-
 
 static BOOL passcodeChecksOut(NSString * passcode) 
 {
@@ -279,18 +195,31 @@ static void unlockedWithSecondary()
             ) {
                 unlockedWithTimeout = YES;
                 if (digitsGracePeriod) {
-                    graceTimeoutTimer = 
-                        [NSTimer 
-                            scheduledTimerWithTimeInterval:digitsGracePeriod
-                            repeats:NO
-                            block:^(NSTimer *)
-                            {
-                                graceTimeoutTimer = nil;
-                                [   [%c(SpringBoard) sharedApplication] 
-                                    _simulateLockButtonPress
-                                ];
-                            }
-                        ];
+                    if (kCFCoreFoundationVersionNumber >= 1348.00) {
+                        graceTimeoutTimer = 
+                            [NSTimer 
+                                scheduledTimerWithTimeInterval:digitsGracePeriod
+                                repeats:NO
+                                block:^(NSTimer *)
+                                {
+                                    graceTimeoutTimer = nil;
+                                    [   [%c(SpringBoard) sharedApplication] 
+                                        _simulateLockButtonPress
+                                    ];
+                                }
+                            ];
+                    } else {
+                        UIAlertView *alert =    
+                            [   [UIAlertView alloc]
+                                initWithTitle:@"PassBy"
+                                message:@"Timeout not supported below iOS 10"
+                                delegate:nil 
+                                cancelButtonTitle:@"OK" 
+                                otherButtonTitles:nil
+                            ];
+                        [alert show];
+                        [alert release];
+                    }
                 }
             }
         }
@@ -519,42 +448,6 @@ static BOOL isUsingBT()
 
 
 
-static BOOL isInGrace()
-{
-    if (isTemporaryDisabled())
-        return NO;
-
-    if (gracePeriodEnds 
-    && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
-        return YES;
-
-    if (gracePeriodWiFiEnds 
-    && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending
-    && isUsingWiFi()
-    ) {
-        return YES;
-    } else {
-        [gracePeriodWiFiEnds release];
-        gracePeriodWiFiEnds = nil;
-    }
-
-    if (gracePeriodBTEnds 
-    && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending 
-    && isUsingBT()
-    ) {
-        return YES;
-    } else {
-        [gracePeriodBTEnds release];
-        gracePeriodBTEnds = nil;
-    }
-
-    if (headphonesAutoUnlock)
-        return (wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones());
-
-    return NO;
-}
-
-
 %group iOS11
 @interface NCNotificationCombinedListViewController
 - (BOOL)hasContent;
@@ -580,6 +473,22 @@ static BOOL isInGrace()
 }
 %end
 %end
+
+/*
+%group iOS9
+@interface SBLockScreenNotificationListController
+-(id)_firstBulletin;
+@end
+%hook SBLockScreenNotificationListController
+-(void)viewWillAppear:(BOOL)arg1
+{
+	%orig;
+    NSLog(@"*g* after fb: %s", [self _firstBulletin] == nil ? "Y" : "N");
+	NCHasContent = [self _firstBulletin] != nil;
+}
+%end
+%end
+*/
 
 
 @interface SBLockScreenViewControllerBase
@@ -645,9 +554,9 @@ static void lockstateChanged(
                             [graceTimeoutTimer invalidate];
                             graceTimeoutTimer = nil;
                         } else if (unlockedWithTimeout) {
-                            wasUsingHeadphones = NO;
+                            invalidateAllGracePeriods();
                         } else {
-                            updateGracePeriods();
+                            updateAllGracePeriods();
                         }
                         unlockedWithTimeout = NO;
                     }

@@ -1,5 +1,5 @@
-#ifndef PASSBYHELPER_H
-#define PASSBYHELPER_H
+#ifndef PASSBYDIGITSHELPER_H
+#define PASSBYDIGITSHELPER_H
 
 NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
 {
@@ -21,18 +21,14 @@ BOOL evalDateTimeHelper(NSString * format, char d0, char d1, BOOL reversed)
         d1 = tmp;
     }
 
-    NSDate * date = [NSDate new];
-    NSString * dateString = stringFromDateAndFormat(
-        [date dateByAddingTimeInterval:timeShift * 60], format
-    );
-    [date release];
+    NSString * dateString = 
+        stringFromDateAndFormat(
+            [NSDate dateWithTimeIntervalSinceNow:timeShift * 60], 
+            format
+        );
 
-    BOOL success = 
-        d0 == [dateString characterAtIndex:0] 
+    return d0 == [dateString characterAtIndex:0] 
         && d1 == [dateString characterAtIndex:1];
-
-    [dateString release];
-    return success;
 }
 
 
@@ -193,5 +189,6 @@ BOOL parseTime(struct Time * time, NSString * timeString)
     return NO;
 }
 
-
-#endif // PASSBYHELPER_H
+#else
+#error "File already included"
+#endif // PASSBYDIGITSHELPER_H

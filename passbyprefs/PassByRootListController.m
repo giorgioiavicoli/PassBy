@@ -65,6 +65,22 @@
     [self reloadSpecifiers];
 }
 
+
+-(void)donate:(id)arg1 
+{
+    if ([UIApplication respondsToSelector:@selector(openURL:options:completionHandler:)]) {
+        [   [UIApplication sharedApplication] 
+            openURL:[NSURL URLWithString:@"https://paypal.me/giorgioiavicoli"] 
+            options:@{} 
+            completionHandler:nil
+        ];
+    } else {
+        [   [UIApplication sharedApplication] 
+            openURL:[NSURL URLWithString:@"https://paypal.me/giorgioiavicoli"] 
+        ];
+    }
+}
+
 -(void)resetSettings:(id)arg1 
 {
     [@{} writeToFile:@PLIST_PATH        atomically:YES];
