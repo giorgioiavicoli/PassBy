@@ -33,6 +33,7 @@ static BOOL unlockedWithTimeout;
 static BOOL wasUsingHeadphones;
 static BOOL isInSOSMode;
 static BOOL isKeptDisabled;
+static BOOL isManuallyDisabled;
 static BOOL lastLockedState;
 
 static int  gracePeriod;
@@ -522,7 +523,6 @@ static BOOL isUsingBT()
 -(void)viewWillAppear:(BOOL)arg1
 {
 	%orig;
-    NSLog(@"*g* after fb: %s", [self _firstBulletin] == nil ? "Y" : "N");
 	NCHasContent = [self _firstBulletin] != nil;
 }
 %end
@@ -592,11 +592,16 @@ static void lockstateChanged(
                             graceTimeoutTimer = nil;
                         } else if (unlockedWithTimeout) {
                             invalidateAllGracePeriods();
+                        } else if (isManuallyDisabled) {
+                            invalidateAllGracePeriods();
+                            isManuallyDisabled = NO;
                         } else {
                             updateAllGracePeriods();
-                            if (savePasscode)
-                                saveGracePeriods();
                         }
+
+                        if (savePasscode)
+                            saveAllGracePeriods();
+
                         unlockedWithTimeout = NO;
                     }
                 } else if (lastLockedState) {
@@ -824,17 +829,22 @@ static void setUUID()
     wasUsingHeadphones  = NO;
     isInSOSMode         = NO;
     isKeptDisabled      = NO;
+    isManuallyDisabled  = NO;
     lastLockedState     = YES;
 
     if (savePasscode)
-        loadGracePeriods();
+        loadAllGracePeriods();
 
     dlopen("/usr/lib/libactivator.dylib", RTLD_LAZY);
 
     if (objc_getClass("LAActivator")) {
         [   [LAActivator sharedInstance] 
             registerListener:[[PassByListener new] retain]
-            forName:@"com.giorgioiavicoli.passby"
+            forName:@PASSBY_UNLOCK_LALISTENER_NAME
+        ];
+        [   [LAActivator sharedInstance] 
+            registerListener:[[PassByListener new] retain]
+            forName:@PASSBY_INVALIDATE_LALISTENER_NAME
         ];
     }
 }

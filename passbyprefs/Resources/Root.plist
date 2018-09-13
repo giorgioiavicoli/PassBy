@@ -98,15 +98,33 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Activator – activation methods</string>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>label</key>
-			<string>Activation Methods (Activator)</string>
+			<string>Unlock and dismiss lockscreen</string>
 			<key>isController</key>
 			<true/>
 			<key>bundle</key>
 			<string>LibActivator</string>
 			<key>activatorListener</key>
-			<string>com.giorgioiavicoli.passby</string>
+			<string>com.giorgioiavicoli.passby.unlock</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>label</key>
+			<string>Disable until next real unlock</string>
+			<key>isController</key>
+			<true/>
+			<key>bundle</key>
+			<string>LibActivator</string>
+			<key>activatorListener</key>
+			<string>com.giorgioiavicoli.passby.invalidate</string>
 		</dict>
 		<dict>
 			<key>cell</key>

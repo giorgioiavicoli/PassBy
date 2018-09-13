@@ -58,7 +58,7 @@ static void invalidateAllGracePeriods()
     wasUsingHeadphones = NO;
 }
 
-static void saveGracePeriods()
+static void saveAllGracePeriods()
 {
     NSMutableDictionary * gracePeriods =    
         [   [NSMutableDictionary alloc] 
@@ -111,7 +111,7 @@ static void saveGracePeriods()
     [gracePeriods release];
 }
 
-static void loadGracePeriods()
+static void loadAllGracePeriods()
 {
     NSDictionary * gracePeriods =    
         [   [NSDictionary alloc] 
