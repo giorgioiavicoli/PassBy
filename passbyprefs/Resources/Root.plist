@@ -350,7 +350,19 @@
 			<key>key</key>
 			<string>headphonesAutoUnlock</string>
 			<key>label</key>
-			<string>Auto-unlock when using headphones</string>
+			<string>Auto-unlock while using headphones</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>watchAutoUnlock</string>
+			<key>label</key>
+			<string>Auto-unlock while Watch is reachable</string>
 		</dict>
 		<dict>
 			<key>cell</key>

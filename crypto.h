@@ -33,8 +33,8 @@ NSData * aes(
     uint32_t const out_capacity = (int)(data_length / kCCBlockSizeAES128 + 1) * kCCBlockSizeAES128;
     
     NSMutableData * output = 
-        [   [NSMutableData alloc] 
-            initWithLength:out_capacity
+        [NSMutableData 
+            dataWithLength:out_capacity
         ];
 
     size_t bytes_written;

@@ -76,7 +76,6 @@ static void saveAllGracePeriods()
             setObject:GPData
             forKey:@"gp"
         ];
-        [GPData release];
     }
 
     if (useGracePeriodOnWiFi && gracePeriodWiFiEnds) {
@@ -90,7 +89,6 @@ static void saveAllGracePeriods()
             setObject:WiFiGPData
             forKey:@"gpwifi"
         ];
-        [WiFiGPData release];
     }
 
     if (useGracePeriodOnBT && gracePeriodBTEnds) {
@@ -104,7 +102,6 @@ static void saveAllGracePeriods()
             setObject:BTGPData
             forKey:@"gpbt"
         ];
-        [BTGPData release];
     }
 
     [gracePeriods writeToFile:@(GP_PLIST_PATH) atomically:YES];
@@ -231,8 +228,11 @@ static BOOL isTemporaryDisabled()
 
 static BOOL isInGrace()
 {
-    if (isTemporaryDisabled())
+    if (isTemporaryDisabled() || isManuallyDisabled)
         return NO;
+
+    if (watchAutoUnlock && isUsingWatch())
+        return YES;
 
     if (gracePeriodEnds 
     && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)

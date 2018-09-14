@@ -17,6 +17,7 @@ static BOOL useGracePeriodOnBT;
 static BOOL allowBTGPWhileLocked;
 static BOOL allowWiFiGPWhileLocked;
 static BOOL headphonesAutoUnlock;
+static BOOL watchAutoUnlock;
 
 static BOOL showLastUnlock;
 static BOOL dismissLS;
@@ -73,9 +74,10 @@ static NSDate   *   lastUnlock          = nil;
 
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
-static BOOL isUsingHeadphones();
 static BOOL isUsingWiFi();
 static BOOL isUsingBT();
+static BOOL isUsingHeadphones();
+static BOOL isUsingWatch();
 
 #include "PassByGracePeriodHelper.h"
 
@@ -86,7 +88,7 @@ static void savePasscodeToFile()
             initWithContentsOfFile:@PLIST_PATH
         ]?: [NSMutableDictionary new];
 
-    NSData * passcodeData =
+    NSData * passcodeData = 
         AES128Encrypt(
             [truePasscode 
                 dataUsingEncoding:NSUTF8StringEncoding
@@ -99,52 +101,6 @@ static void savePasscodeToFile()
     ];
     [passByDict writeToFile:@(PLIST_PATH) atomically:YES];
     [passByDict release];
-    [passcodeData release];
-}
-
-static BOOL passcodeChecksOut(NSString * passcode) 
-{
-    return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
-        && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
-        && (!isSixDigitPasscode 
-            || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5])
-        );
-}
-
-static BOOL checkAttemptedUnlock(NSString * passcode)
-{
-    return passcode && truePasscode
-    && useMagicPasscode 
-    && !isInSOSMode 
-    && !isTemporaryDisabled()
-    && [passcode length] == (isSixDigitPasscode ? 6 : 4)
-    && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
-    && ![truePasscode isEqualToString:passcode]
-    && passcodeChecksOut(passcode);
-}
-
-
-@class SBLockScreenViewControllerBase; //Forward declaration
-
-@interface SBLockScreenManager : NSObject
-@property(readonly) BOOL isUILocked;
-+ (id)sharedInstance;
-//- (BOOL)attemptUnlockWithPasscode:(NSString *)passcode;
-- (void)attemptUnlockWithPasscode:(NSString *)passcode completion:(/*^block*/id)arg2 ;
-
-- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode finishUIUnlock:(BOOL)arg2;
-- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 ;
-- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 completion:(/*^block*/id)arg4 ;
-
-- (SBLockScreenViewControllerBase *) lockScreenViewController;
-@end
-
-static void unlockDevice(BOOL finishUIUnlock)
-{
-    [   [%c(SBLockScreenManager) sharedInstance] 
-        _attemptUnlockWithPasscode:truePasscode 
-        finishUIUnlock: finishUIUnlock
-    ];
 }
 
 static void unlockedWithPrimary(NSString * passcode)
@@ -191,7 +147,7 @@ static void unlockedWithPrimary(NSString * passcode)
 }
 
 @interface SpringBoard
-+ (id)sharedApplication;
++ (id)  sharedApplication;
 - (void)_simulateLockButtonPress;
 @end
 
@@ -208,16 +164,17 @@ static void unlockedWithSecondary()
                 if (digitsGracePeriod) {
                     if (kCFCoreFoundationVersionNumber >= 1348.00) {
                         graceTimeoutTimer = 
-                            [NSTimer 
-                                scheduledTimerWithTimeInterval:digitsGracePeriod
-                                repeats:NO
-                                block:^(NSTimer *)
-                                {
-                                    graceTimeoutTimer = nil;
-                                    [   [%c(SpringBoard) sharedApplication] 
-                                        _simulateLockButtonPress
-                                    ];
-                                }
+                            [   [NSTimer 
+                                    scheduledTimerWithTimeInterval:digitsGracePeriod
+                                    repeats:NO
+                                    block:^(NSTimer *)
+                                    {
+                                        graceTimeoutTimer = nil;
+                                        [   [%c(SpringBoard) sharedApplication] 
+                                            _simulateLockButtonPress
+                                        ];
+                                    }
+                                ] retain
                             ];
                     } else {
                         UIAlertView *alert =    
@@ -238,8 +195,8 @@ static void unlockedWithSecondary()
 }
 
 @interface SBLockStateAggregator : NSObject
-+(id)sharedInstance;
--(unsigned long long)lockState;
++ (id)sharedInstance;
+- (unsigned long long)lockState;
 @end
 
 BOOL isDeviceLocked()
@@ -250,6 +207,51 @@ BOOL isDeviceLocked()
         ] & LOCKSTATE_NEEDSAUTH_MASK;
 }
 
+
+static BOOL passcodeChecksOut(NSString * passcode) 
+{
+    return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
+        && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
+        && (!isSixDigitPasscode 
+            || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5])
+        );
+}
+
+static BOOL checkAttemptedUnlock(NSString * passcode)
+{
+    return passcode && truePasscode
+    && useMagicPasscode 
+    && !isInSOSMode 
+    && !isTemporaryDisabled()
+    && [passcode length] == (isSixDigitPasscode ? 6 : 4)
+    && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
+    && ![truePasscode isEqualToString:passcode]
+    && passcodeChecksOut(passcode);
+}
+
+@class SBLockScreenViewControllerBase; //Forward declaration
+
+@interface SBLockScreenManager : NSObject
+@property(readonly) BOOL isUILocked;
++ (id)  sharedInstance;
+
+- (BOOL)attemptUnlockWithPasscode:(NSString *)passcode;
+//- (void)attemptUnlockWithPasscode:(NSString *)passcode completion:(/*^block*/id)arg2 ;
+
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode finishUIUnlock:(BOOL)arg2;
+//- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 ;
+- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 completion:(/*^block*/id)arg4 ;
+
+- (SBLockScreenViewControllerBase *) lockScreenViewController;
+@end
+
+static void unlockDevice(BOOL finishUIUnlock)
+{
+    [   [%c(SBLockScreenManager) sharedInstance] 
+        _attemptUnlockWithPasscode:truePasscode 
+        finishUIUnlock: finishUIUnlock
+    ];
+}
 
 @interface SBFAuthenticationRequest : NSObject
 - (NSData *)payload;
@@ -358,6 +360,9 @@ BOOL isDeviceLocked()
 */
 
 
+
+
+
 @interface SBUIPasscodeLockViewWithKeypad
 - (UILabel *)statusTitleView;
 @end
@@ -410,36 +415,10 @@ BOOL isDeviceLocked()
 
 
 
-@interface VolumeControl
-+ (id)sharedVolumeControl;
-- (BOOL)headphonesPresent;
-@end
-
-static BOOL isUsingHeadphones()
-{
-    return [[%c(VolumeControl) sharedVolumeControl] headphonesPresent];
-}
-
 
 @interface SBWiFiManager : NSObject
 - (void)_linkDidChange;
 @end
-
-static BOOL isUsingWiFi()
-{
-    if (!useGracePeriodOnWiFi)
-        return NO;
-
-    NSString * SSID = 
-        ((NSDictionary *)
-            CNCopyCurrentNetworkInfo(CFSTR("en0"))
-        ) [@"SSID"];
-
-    return 
-        SSID && [SSID length]
-        && allowedSSIDs 
-        && [allowedSSIDs containsObject:SHA1(SSID)];
-}
 
 %hook SBWiFiManager
 - (void)_linkDidChange
@@ -450,16 +429,33 @@ static BOOL isUsingWiFi()
 }
 %end
 
+static BOOL isUsingWiFi()
+{
+    if (!useGracePeriodOnWiFi)
+        return NO;
+
+    NSString * SSID = 
+        [   (   (NSDictionary *)
+                CNCopyCurrentNetworkInfo(CFSTR("en0"))
+            ) autorelease
+        ] [@"SSID"];
+ 
+    return SSID 
+        && [SSID length]
+        && allowedSSIDs 
+        && [allowedSSIDs containsObject:SHA1(SSID)];
+}
+
+
 @interface BluetoothDevice : NSObject
--(NSString *)name;
--(NSString*)address;
+- (NSString *)name;
+- (NSString *)address;
 @end
 
-
 @interface BluetoothManager : NSObject
-+(id)sharedInstance;
--(id)connectedDevices;
--(void)_connectedStatusChanged;
++ (id)  sharedInstance;
+- (id)  connectedDevices;
+- (void)_connectedStatusChanged;
 @end
 
 static BOOL isUsingBT()
@@ -470,7 +466,8 @@ static BOOL isUsingBT()
         if ([connectedDevices count]) {
             for (BluetoothDevice * bluetoothDevice in connectedDevices) {
                 NSString * deviceName = [bluetoothDevice name];
-                if (deviceName && [deviceName length]
+                if (deviceName 
+                && [deviceName length]
                 && [allowedBTs containsObject:SHA1(deviceName)])
                     return YES;
     }   }   }
@@ -478,13 +475,38 @@ static BOOL isUsingBT()
 }
 
 %hook BluetoothManager
--(void)_connectedStatusChanged
+- (void)_connectedStatusChanged
 {
     %orig;
     if (allowBTGPWhileLocked)
         updateBTGracePeriod();
 }
 %end
+
+
+@interface VolumeControl
++ (id)  sharedVolumeControl;
+- (BOOL)headphonesPresent;
+@end
+
+static BOOL isUsingHeadphones()
+{
+    return [[%c(VolumeControl) sharedVolumeControl] headphonesPresent];
+}
+
+
+@interface WCSession
++ (id)  defaultSession;
+- (BOOL)isReachable;
+@end
+
+static BOOL isUsingWatch()
+{
+    WCSession * wcs  = [WCSession defaultSession];
+    return wcs ? [wcs isReachable] : NO;
+}
+
+
 
 
 
@@ -514,29 +536,31 @@ static BOOL isUsingBT()
 %end
 %end
 
-/*
+
 %group iOS9
-@interface SBLockScreenNotificationListController
--(id)_firstBulletin;
+@interface SBLockScreenViewController
+-(void)notificationListBecomingVisible:(BOOL)arg1 ;
 @end
-%hook SBLockScreenNotificationListController
--(void)viewWillAppear:(BOOL)arg1
+%hook SBLockScreenViewController
+-(void)notificationListBecomingVisible:(BOOL)arg1
 {
 	%orig;
-	NCHasContent = [self _firstBulletin] != nil;
+	NCHasContent = arg1;
 }
 %end
 %end
-*/
 
 
 @interface SBLockScreenViewControllerBase
--(BOOL)isShowingMediaControls;
+- (BOOL)isShowingMediaControls;
 @end
 
 @interface SBAssistantController
-+(BOOL) isAssistantVisible;
++ (BOOL) isAssistantVisible;
 @end
+
+
+
 
 uint64_t getState(char const * const name)
 {
@@ -547,7 +571,6 @@ uint64_t getState(char const * const name)
     notify_cancel(token);
     return state;
 }
-
 
 static void displayStatusChanged(   
     CFNotificationCenterRef center, void * observer, 
@@ -592,9 +615,6 @@ static void lockstateChanged(
                             graceTimeoutTimer = nil;
                         } else if (unlockedWithTimeout) {
                             invalidateAllGracePeriods();
-                        } else if (isManuallyDisabled) {
-                            invalidateAllGracePeriods();
-                            isManuallyDisabled = NO;
                         } else {
                             updateAllGracePeriods();
                         }
@@ -607,12 +627,14 @@ static void lockstateChanged(
                 } else if (lastLockedState) {
                     [lastUnlock release];
                     lastUnlock = [NSDate new];
+                    isManuallyDisabled = NO;
                 }
 
                 lastLockedState = lockedState;
             }
         );
 }
+
 
 
 
@@ -648,6 +670,7 @@ static void passBySettingsChanged(
 
 
     headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO boolValue];
+    watchAutoUnlock         =   [[passByDict valueForKey:@"watchAutoUnlock"]        ?:@NO boolValue];
 
     dismissLS               =   [[passByDict valueForKey:@"dismissLS"]              ?:@NO boolValue];
     dismissLSWithMedia      =   [[passByDict valueForKey:@"dismissLSWithMedia"]     ?:@NO boolValue];
@@ -716,19 +739,23 @@ static void passByWiFiListChanged(
     CFNotificationCenterRef center, void * observer, 
     CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
-    NSDictionary * WiFiListDict =   [   [NSDictionary alloc] 
-                                        initWithContentsOfFile:@WIFI_PLIST_PATH
-                                    ]?: [NSDictionary new];
+    NSDictionary * WiFiListDict =   
+        [   [NSDictionary alloc] 
+            initWithContentsOfFile:@WIFI_PLIST_PATH
+        ]?: [NSDictionary new];
 
-    NSMutableArray * WiFiListArr = [[NSMutableArray alloc] initWithCapacity:[WiFiListDict count]];
+    NSMutableArray * WiFiListArr = 
+        [   [NSMutableArray alloc] 
+            initWithCapacity:[WiFiListDict count]
+        ];
 
     for(NSString * key in [WiFiListDict keyEnumerator])
         if ([[WiFiListDict valueForKey:key] boolValue])
             [WiFiListArr addObject:[key copy]];
     
-    [WiFiListDict release];
     [allowedSSIDs release];
-    allowedSSIDs = [[NSArray alloc] initWithArray:WiFiListArr copyItems:NO];
+    allowedSSIDs = [[NSArray alloc] initWithArray:WiFiListArr copyItems:YES];
+    [WiFiListDict release];    
     [WiFiListArr release];
 }
 
@@ -835,15 +862,14 @@ static void setUUID()
     if (savePasscode)
         loadAllGracePeriods();
 
-    dlopen("/usr/lib/libactivator.dylib", RTLD_LAZY);
-
-    if (objc_getClass("LAActivator")) {
+    if (dlopen("/usr/lib/libactivator.dylib", RTLD_NOW) && objc_getClass("LAActivator")) {
+        static PassByListener * passbyActivatorListener = [[PassByListener new] retain];
         [   [LAActivator sharedInstance] 
-            registerListener:[[PassByListener new] retain]
+            registerListener:passbyActivatorListener
             forName:@PASSBY_UNLOCK_LALISTENER_NAME
         ];
         [   [LAActivator sharedInstance] 
-            registerListener:[[PassByListener new] retain]
+            registerListener:passbyActivatorListener
             forName:@PASSBY_INVALIDATE_LALISTENER_NAME
         ];
     }
