@@ -1,5 +1,6 @@
-#import <notify.h>
 #import <MessageUI/MessageUI.h>
+#include <notify.h>
+#include <objc/runtime.h>
 
 #include "PassByRootListController.h"
 #include "../crypto.h"
@@ -172,7 +173,7 @@ NSString * SHA1(NSString * str);
 
         WiFiManagerRef manager = WiFiManagerClientCreate(kCFAllocatorDefault, 0);
         if (manager) {
-            NSArray * networks = (NSArray *) WiFiManagerClientCopyNetworks(manager);
+            NSArray * networks = (__bridge NSArray *) WiFiManagerClientCopyNetworks(manager);
             if (networks) {
                 for(id network in networks) {
                     NSString * name = (NSString *) WiFiNetworkGetSSID((WiFiNetworkRef)network);
@@ -196,6 +197,7 @@ NSString * SHA1(NSString * str);
                         [specifiers addObject:specifier];
                     }
                 }
+                [networks release];
             }
         }
         [networksList release];

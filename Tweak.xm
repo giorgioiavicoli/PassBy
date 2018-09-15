@@ -120,30 +120,26 @@ static void unlockedWithPrimary(NSString * passcode)
 
             isInSOSMode = NO;
 
-            if (passcode 
-            && [passcode length] == (isSixDigitPasscode ? 6 : 4)
+            if (!truePasscode 
+            || [truePasscode length] != (isSixDigitPasscode ? 6 : 4)
+            || ![truePasscode isEqualToString:passcode]
             ) {
-                if (!truePasscode 
-                || [truePasscode length] != (isSixDigitPasscode ? 6 : 4)
-                || ![truePasscode isEqualToString:passcode]
-                ) {
-                    [truePasscode release];
-                    truePasscode = [passcode copy];
-                    if (savePasscode)
-                        savePasscodeToFile();
-                        
-                    if (!disableAlert) {
-                        UIAlertView *alert =    
-                            [   [UIAlertView alloc]
-                                initWithTitle:@"PassBy"
-                                message:@"PassBy enabled!"
-                                delegate:nil 
-                                cancelButtonTitle:@"OK" 
-                                otherButtonTitles:nil
-                            ];
-                        [alert show];
-                        [alert release];
-                    }
+                [truePasscode release];
+                truePasscode = [passcode copy];
+                if (savePasscode)
+                    savePasscodeToFile();
+                    
+                if (!disableAlert) {
+                    UIAlertView *alert =    
+                        [   [UIAlertView alloc]
+                            initWithTitle:@"PassBy"
+                            message:@"PassBy enabled!"
+                            delegate:nil 
+                            cancelButtonTitle:@"OK" 
+                            otherButtonTitles:nil
+                        ];
+                    [alert show];
+                    [alert release];
                 }
             }
         }
@@ -206,8 +202,9 @@ static void unlockedWithSecondary()
 BOOL isDeviceLocked()
 {
     return 
-        [   [%c(SBLockStateAggregator) sharedInstance] 
-            lockState
+        [   [%c(SBLockStateAggregator) 
+                sharedInstance
+            ] lockState
         ] & LOCKSTATE_NEEDSAUTH_MASK;
 }
 
@@ -216,18 +213,18 @@ static BOOL passcodeChecksOut(NSString * passcode)
 {
     return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
         && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
-        && (!isSixDigitPasscode 
+        &&  (!isSixDigitPasscode 
             || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5])
-        );
+            );
 }
 
 static BOOL checkAttemptedUnlock(NSString * passcode)
 {
-    return passcode && truePasscode
-    && useMagicPasscode 
+    return useMagicPasscode  
+    && truePasscode
     && !isInSOSMode 
-    && !isTemporaryDisabled()
     && !isManuallyDisabled
+    && !isTemporaryDisabled()
     && [passcode length] == (isSixDigitPasscode ? 6 : 4)
     && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
     && ![truePasscode isEqualToString:passcode]
@@ -251,7 +248,7 @@ static BOOL checkAttemptedUnlock(NSString * passcode)
 @end
 
 static void unlockDevice(BOOL finishUIUnlock)
-{
+{   
     [   [%c(SBLockScreenManager) sharedInstance] 
         _attemptUnlockWithPasscode:truePasscode 
         finishUIUnlock: finishUIUnlock
@@ -270,15 +267,16 @@ static void unlockDevice(BOOL finishUIUnlock)
 %hook SBLockScreenManager
 - (BOOL)attemptUnlockWithPasscode:(NSString *)passcode
 {
-    if (!isTweakEnabled)
+    if (!isTweakEnabled || !passcode)
         return %orig;
 
     if (checkAttemptedUnlock(passcode)) {
-        if(%orig(truePasscode)) {
+        if (%orig(truePasscode)) {
             unlockedWithSecondary();
             return YES;
         }
-    } 
+    }
+
     if (%orig) {
         unlockedWithPrimary(passcode);
         return YES;
@@ -297,21 +295,23 @@ static void unlockDevice(BOOL finishUIUnlock)
         return %orig;
     
     NSString * passcode = 
-        [   [[NSString alloc] retain]
+        [   [NSString alloc]
             initWithData:[request payload]
             encoding:NSASCIIStringEncoding
         ];
     
-    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
+    if (passcode && [passcode length]) {
+        SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
 
-    if (checkAttemptedUnlock(passcode)
-    && [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES]
-    ) {
+        if (checkAttemptedUnlock(passcode)
+        && [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES]
+        ) {
             unlockedWithSecondary();
-    } else {
-        %orig;
-        if (![SBLSManager isUILocked])
-            unlockedWithPrimary(passcode);
+        } else {
+            %orig;
+            if (![SBLSManager isUILocked])
+                unlockedWithPrimary(passcode);
+        }
     }
 
     [passcode release];
@@ -326,16 +326,20 @@ static void unlockDevice(BOOL finishUIUnlock)
                     finishUIUnlock:(BOOL)arg3 
                         completion:(/*^block*/id)arg4 
 {
-    if (!isTweakEnabled)
+    if (!isTweakEnabled || !passcode)
         return %orig;
 
+    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
+
+
     if (checkAttemptedUnlock(passcode)) {
-        if (%orig(truePasscode, arg2, arg3, arg4)) {
+        if (%orig(truePasscode, arg2, arg3, arg4) && [SBLSManager isUILocked]) {
             unlockedWithSecondary();
             return YES;
         }
     } 
-    if (%orig) {
+
+    if (%orig && ![SBLSManager isUILocked]) {
         unlockedWithPrimary(passcode);
         return YES;
     }
@@ -594,16 +598,22 @@ static void displayStatusChanged(
             dispatch_get_main_queue(),
             ^{
                 if (getState("com.apple.iokit.hid.displayStatus")
-                && truePasscode && [truePasscode length]
+                && truePasscode 
+                && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
                 && isInGrace()
                 && ([[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
                 ) {
-                    unlockDevice(   dismissLS 
-                                && !NCHasContent 
-                                && (dismissLSWithMedia || ![[   [%c(SBLockScreenManager) sharedInstance] 
-                                                                lockScreenViewController
-                                                            ] isShowingMediaControls])
-                                && ![%c(SBAssistantController) isAssistantVisible]
+                    unlockDevice(   
+                        dismissLS 
+                        && !NCHasContent 
+                        && (dismissLSWithMedia 
+                            || ![  [   [%c(SBLockScreenManager) 
+                                            sharedInstance
+                                        ] lockScreenViewController
+                                    ] isShowingMediaControls
+                                ]
+                            )
+                        && ![%c(SBAssistantController) isAssistantVisible]
                     );
                 }
             }
@@ -732,7 +742,8 @@ static void passBySettingsChanged(
                 initWithData:AES128Decrypt(passcodeData, UUID)
                 encoding:NSUTF8StringEncoding
             ];
-    } else if (savePasscode && truePasscode 
+    } else if (savePasscode 
+    && truePasscode 
     && [truePasscode length] == (isSixDigitPasscode ? 4 : 6)
     ) {
         savePasscodeToFile();
@@ -796,9 +807,9 @@ static void passByBTListChanged(
         if ([[BTListDict valueForKey:key] boolValue])
             [BTListArr addObject:[key copy]];
     
-    [BTListDict release];
     [allowedBTs release];
-    allowedBTs = [[NSArray alloc] initWithArray:BTListArr copyItems:NO];
+    allowedBTs = [[NSArray alloc] initWithArray:BTListArr copyItems:YES];
+    [BTListDict release];
     [BTListArr release];
 }
 
