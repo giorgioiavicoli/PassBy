@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import <SystemConfiguration/CaptiveNetwork.h>
 #import <notify.h>
+#import <objc/runtime.h>
 
 #include "crypto.h"
 
@@ -64,6 +65,9 @@ static NSData   *   UUID                = nil;
 
 static NSDate   *   currentDay          = nil;
 static NSDate   *   lastUnlock          = nil;
+
+static NSObject *   WiFiGracePeriodSyncObj;
+static NSObject *   BTGracePeriodSyncObj;
 
 #define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
@@ -223,6 +227,7 @@ static BOOL checkAttemptedUnlock(NSString * passcode)
     && useMagicPasscode 
     && !isInSOSMode 
     && !isTemporaryDisabled()
+    && !isManuallyDisabled
     && [passcode length] == (isSixDigitPasscode ? 6 : 4)
     && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
     && ![truePasscode isEqualToString:passcode]
@@ -434,16 +439,24 @@ static BOOL isUsingWiFi()
     if (!useGracePeriodOnWiFi)
         return NO;
 
-    NSString * SSID = 
-        [   (   (NSDictionary *)
-                CNCopyCurrentNetworkInfo(CFSTR("en0"))
-            ) autorelease
-        ] [@"SSID"];
- 
-    return SSID 
+    NSDictionary * currentNetwork =
+        (__bridge NSDictionary *)
+        CNCopyCurrentNetworkInfo(CFSTR("en0"));
+
+    if (!currentNetwork)
+        return NO;
+
+    NSString * SSID = [currentNetwork objectForKey:@"SSID"];
+
+    BOOL result = 
+            SSID 
         && [SSID length]
         && allowedSSIDs 
         && [allowedSSIDs containsObject:SHA1(SSID)];
+
+    [currentNetwork release];
+
+    return result;
 }
 
 
@@ -729,10 +742,16 @@ static void passBySettingsChanged(
 
     [gracePeriodEnds        release];
     gracePeriodEnds         = nil;
-    [gracePeriodWiFiEnds    release];
-    gracePeriodWiFiEnds     = nil;
-    [gracePeriodBTEnds      release];
-    gracePeriodBTEnds       = nil;
+
+    @synchronized(WiFiGracePeriodSyncObj) {
+        [gracePeriodWiFiEnds    release];
+        gracePeriodWiFiEnds     = nil;
+    }
+
+    @synchronized(BTGracePeriodSyncObj) {
+        [gracePeriodBTEnds      release];
+        gracePeriodBTEnds       = nil;
+    }
 }
 
 static void passByWiFiListChanged(
@@ -859,18 +878,24 @@ static void setUUID()
     isManuallyDisabled  = NO;
     lastLockedState     = YES;
 
+    WiFiGracePeriodSyncObj  = [NSObject new];
+    BTGracePeriodSyncObj    = [NSObject new];
+
     if (savePasscode)
         loadAllGracePeriods();
 
-    if (dlopen("/usr/lib/libactivator.dylib", RTLD_NOW) && objc_getClass("LAActivator")) {
-        static PassByListener * passbyActivatorListener = [[PassByListener new] retain];
-        [   [LAActivator sharedInstance] 
-            registerListener:passbyActivatorListener
-            forName:@PASSBY_UNLOCK_LALISTENER_NAME
-        ];
-        [   [LAActivator sharedInstance] 
-            registerListener:passbyActivatorListener
-            forName:@PASSBY_INVALIDATE_LALISTENER_NAME
-        ];
+    if (dlopen("/usr/lib/libactivator.dylib", RTLD_NOW)) {
+        Class LAActivatorClass = objc_getClass("LAActivator");
+        if (LAActivatorClass) {
+            static PassByListener * passbyActivatorListener = [[PassByListener new] retain];
+            [   [LAActivatorClass sharedInstance]
+                registerListener:passbyActivatorListener
+                forName:@PASSBY_UNLOCK_LALISTENER_NAME
+            ];
+            [   [LAActivatorClass sharedInstance] 
+                registerListener:passbyActivatorListener
+                forName:@PASSBY_INVALIDATE_LALISTENER_NAME
+            ];
+        }
     }
 }

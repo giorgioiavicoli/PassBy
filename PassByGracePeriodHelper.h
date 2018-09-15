@@ -15,25 +15,28 @@ static void updateGracePeriod()
 
 static void updateWiFiGracePeriod()
 {
-    [gracePeriodWiFiEnds release];
-    gracePeriodWiFiEnds = 
-        useGracePeriodOnWiFi && isUsingWiFi()
-            ? (gracePeriodOnWiFi 
-                ? [[NSDate dateWithTimeIntervalSinceNow:gracePeriodOnWiFi] retain]
-                : [[NSDate distantFuture] copy]
-            ) : nil;
+    @synchronized(WiFiGracePeriodSyncObj) {
+        [gracePeriodWiFiEnds release];
+        gracePeriodWiFiEnds = 
+            useGracePeriodOnWiFi && isUsingWiFi()
+                ? (gracePeriodOnWiFi 
+                    ? [[NSDate dateWithTimeIntervalSinceNow:gracePeriodOnWiFi] retain]
+                    : [[NSDate distantFuture] copy]
+                ) : nil;
+    }
 }
 
 static void updateBTGracePeriod()
 {
-    [gracePeriodBTEnds release];
-    
-    gracePeriodBTEnds = 
-        useGracePeriodOnBT && isUsingBT()
-            ? (gracePeriodOnBT
-                ? [[NSDate dateWithTimeIntervalSinceNow:gracePeriodOnBT] retain]
-                : [[NSDate distantFuture] copy]
-            ) : nil;
+    @synchronized(BTGracePeriodSyncObj) {
+        [gracePeriodBTEnds release];
+        gracePeriodBTEnds = 
+            useGracePeriodOnBT && isUsingBT()
+                ? (gracePeriodOnBT
+                    ? [[NSDate dateWithTimeIntervalSinceNow:gracePeriodOnBT] retain]
+                    : [[NSDate distantFuture] copy]
+                ) : nil;
+    }
 }
 
 static void updateAllGracePeriods()
@@ -49,11 +52,15 @@ static void invalidateAllGracePeriods()
     [gracePeriodEnds release];
     gracePeriodEnds = nil;
 
-    [gracePeriodWiFiEnds release];
-    gracePeriodWiFiEnds = nil;
+    @synchronized(WiFiGracePeriodSyncObj) {
+        [gracePeriodWiFiEnds release];
+        gracePeriodWiFiEnds = nil;
+    }
 
-    [gracePeriodBTEnds release];
-    gracePeriodBTEnds = nil;
+    @synchronized(BTGracePeriodSyncObj) {
+        [gracePeriodBTEnds release];
+        gracePeriodBTEnds = nil;
+    }
 
     wasUsingHeadphones = NO;
 }
@@ -78,30 +85,34 @@ static void saveAllGracePeriods()
         ];
     }
 
-    if (useGracePeriodOnWiFi && gracePeriodWiFiEnds) {
-        NSData * WiFiGPData =
-            AES128Encrypt(
-                [stringFromDateAndFormat(gracePeriodWiFiEnds, @"ddMMyyyyHHmmss")
-                    dataUsingEncoding:NSUTF8StringEncoding
-                ], UUID
-            );
-        [gracePeriods 
-            setObject:WiFiGPData
-            forKey:@"gpwifi"
-        ];
+    @synchronized(WiFiGracePeriodSyncObj) {
+        if (useGracePeriodOnWiFi && gracePeriodWiFiEnds) {
+            NSData * WiFiGPData =
+                AES128Encrypt(
+                    [stringFromDateAndFormat(gracePeriodWiFiEnds, @"ddMMyyyyHHmmss")
+                        dataUsingEncoding:NSUTF8StringEncoding
+                    ], UUID
+                );
+            [gracePeriods 
+                setObject:WiFiGPData
+                forKey:@"gpwifi"
+            ];
+        }
     }
 
-    if (useGracePeriodOnBT && gracePeriodBTEnds) {
-        NSData * BTGPData =
-            AES128Encrypt(
-                [stringFromDateAndFormat(gracePeriodBTEnds, @"ddMMyyyyHHmmss")
-                    dataUsingEncoding:NSUTF8StringEncoding
-                ], UUID
-            );
-        [gracePeriods 
-            setObject:BTGPData
-            forKey:@"gpbt"
-        ];
+    @synchronized(BTGracePeriodSyncObj) {
+        if (useGracePeriodOnBT && gracePeriodBTEnds) {
+            NSData * BTGPData =
+                AES128Encrypt(
+                    [stringFromDateAndFormat(gracePeriodBTEnds, @"ddMMyyyyHHmmss")
+                        dataUsingEncoding:NSUTF8StringEncoding
+                    ], UUID
+                );
+            [gracePeriods 
+                setObject:BTGPData
+                forKey:@"gpbt"
+            ];
+        }
     }
 
     [gracePeriods writeToFile:@(GP_PLIST_PATH) atomically:YES];
@@ -140,10 +151,12 @@ static void loadAllGracePeriods()
                     encoding:NSUTF8StringEncoding
                 ];
 
-            gracePeriodEnds = 
-                [   dateFromStringAndFormat(WiFiGPString, @"ddMMyyyyHHmmss")
-                    copy
-                ];
+            @synchronized(WiFiGracePeriodSyncObj) {
+                gracePeriodEnds = 
+                    [   dateFromStringAndFormat(WiFiGPString, @"ddMMyyyyHHmmss")
+                        copy
+                    ];
+            }
 
             [WiFiGPString release];
         }
@@ -155,12 +168,12 @@ static void loadAllGracePeriods()
                     initWithData:AES128Decrypt(BTGPData, UUID)
                     encoding:NSUTF8StringEncoding
                 ];
-
-            gracePeriodEnds = 
-                [   dateFromStringAndFormat(BTPString, @"ddMMyyyyHHmmss")
-                    copy
-                ];
-
+            @synchronized(BTGracePeriodSyncObj) {
+                gracePeriodEnds = 
+                    [   dateFromStringAndFormat(BTPString, @"ddMMyyyyHHmmss")
+                        copy
+                    ];
+            }
             [BTPString release];
         }
     }
@@ -228,7 +241,7 @@ static BOOL isTemporaryDisabled()
 
 static BOOL isInGrace()
 {
-    if (isTemporaryDisabled() || isManuallyDisabled)
+    if (isManuallyDisabled || isTemporaryDisabled())
         return NO;
 
     if (watchAutoUnlock && isUsingWatch())
@@ -238,24 +251,28 @@ static BOOL isInGrace()
     && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
         return YES;
 
-    if (gracePeriodWiFiEnds 
-    && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending
-    && isUsingWiFi()
-    ) {
-        return YES;
-    } else {
-        [gracePeriodWiFiEnds release];
-        gracePeriodWiFiEnds = nil;
+    @synchronized(WiFiGracePeriodSyncObj) {
+        if (gracePeriodWiFiEnds 
+        && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending
+        && isUsingWiFi()
+        ) {
+            return YES;
+        } else {
+            [gracePeriodWiFiEnds release];
+            gracePeriodWiFiEnds = nil;
+        }
     }
 
-    if (gracePeriodBTEnds 
-    && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending 
-    && isUsingBT()
-    ) {
-        return YES;
-    } else {
-        [gracePeriodBTEnds release];
-        gracePeriodBTEnds = nil;
+    @synchronized(BTGracePeriodSyncObj) {
+        if (gracePeriodBTEnds 
+        && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending 
+        && isUsingBT()
+        ) {
+            return YES;
+        } else {
+            [gracePeriodBTEnds release];
+            gracePeriodBTEnds = nil;
+        }
     }
 
     if (headphonesAutoUnlock)
