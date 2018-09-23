@@ -348,27 +348,6 @@ static void unlockDevice(BOOL finishUIUnlock)
 }
 %end
 %end
-/*
-%hook SBLockScreenManager
-- (void)attemptUnlockWithPasscode:(NSString*)passcode completion:(id)arg2 
-{
-    if (!isTweakEnabled)
-        return %orig;
-
-    if (checkAttemptedUnlock(passcode)) {
-        %orig(truePasscode, arg2);
-        if (!isDeviceLocked()) 
-            unlockedWithSecondary();
-    } else {
-        %orig;
-        if (!isDeviceLocked())
-            unlockedWithPrimary(passcode);
-    }
-}
-%end
-*/
-
-
 
 
 
