@@ -1,4 +1,4 @@
-THEOS_DEVICE_IP = 192.168.1.3
+THEOS_DEVICE_IP = iPhone.local
 #192.168.1.7
 #iPhone.local
 include $(THEOS)/makefiles/common.mk
