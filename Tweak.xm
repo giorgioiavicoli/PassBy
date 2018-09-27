@@ -112,12 +112,6 @@ static void unlockedWithPrimary(NSString * passcode)
     dispatch_async(
         dispatch_get_main_queue(),
         ^{
-            if (isKeptDisabled 
-            && [disableToDate compare:[NSDate date]] == NSOrderedAscending
-            ) {
-                isKeptDisabled = NO;
-            }
-
             isInSOSMode = NO;
 
             if (!truePasscode 
@@ -321,10 +315,10 @@ static void unlockDevice(BOOL finishUIUnlock)
 
 %group iOS11
 %hook SBLockScreenManager
-- (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode 
-                              mesa:(BOOL)arg2 
-                    finishUIUnlock:(BOOL)arg3 
-                        completion:(/*^block*/id)arg4 
+- (BOOL)_attemptUnlockWithPasscode  :(NSString *)passcode 
+                            mesa    :(BOOL)arg2 
+                    finishUIUnlock  :(BOOL)arg3 
+                        completion  :(/*^block*/id)arg4 
 {
     if (!isTweakEnabled || !passcode)
         return %orig;
@@ -568,7 +562,7 @@ uint64_t getState(char const * const name)
     return state;
 }
 
-static void displayStatusChanged(   
+static void displayStatusChanged(
     CFNotificationCenterRef center, void * observer, 
     CFStringRef name, void const * object, CFDictionaryRef userInfo) 
 {
@@ -600,7 +594,7 @@ static void displayStatusChanged(
     }
 }
 
-static void lockstateChanged(   
+static void lockstateChanged(
     CFNotificationCenterRef center, void * observer, 
     CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
@@ -629,6 +623,12 @@ static void lockstateChanged(
                 } else if (lastLockedState) {
                     [lastUnlock release];
                     lastUnlock = [NSDate new];
+
+                    if (isKeptDisabled 
+                    && [disableToDate compare:[NSDate date]] == NSOrderedAscending
+                    ) {
+                        isKeptDisabled = NO;
+                    }
                     isManuallyDisabled = NO;
                 }
 

@@ -1,5 +1,5 @@
 THEOS_DEVICE_IP = iPhone.local
-#192.168.1.7
+#i5.local
 #iPhone.local
 include $(THEOS)/makefiles/common.mk
 
@@ -9,9 +9,10 @@ PassBy_FILES = Tweak.xm
 PassBy_FRAMEWORKS = UIKit
 PassBy_PRIVATE_FRAMEWORKS = SpringBoardFoundation BluetoothManager WatchConnectivity
 
-#ADDITIONAL_CFLAGS = -objc-arc
+#ADDITIONAL_CFLAGS = -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS12.0.sdk/usr/include/
+#-objc-arc
 
-LDFLAGS = -F /Users/giorgioiavicoli/theos/sdks/iPhoneOS11.2.sdk/System/Library/PrivateFrameworks
+LDFLAGS = -F $(THEOS)/sdks/iPhoneOS11.2.sdk/System/Library/PrivateFrameworks
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
