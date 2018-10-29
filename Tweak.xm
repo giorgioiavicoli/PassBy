@@ -216,7 +216,6 @@ static BOOL passcodeChecksOut(NSString * passcode)
 
 static BOOL checkAttemptedUnlock(NSString * passcode)
 {
-
     @synchronized(ManuallyDisabledSyncObj) {
         return useMagicPasscode
         && truePasscode
