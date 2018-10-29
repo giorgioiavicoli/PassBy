@@ -36,6 +36,7 @@ static BOOL wasUsingHeadphones;
 static BOOL isInSOSMode;
 static BOOL isKeptDisabled;
 static BOOL isManuallyDisabled;
+static BOOL isDisabledUntilNext;
 static BOOL lastLockedState;
 
 static int  gracePeriod;
@@ -68,6 +69,7 @@ static NSDate   *   lastUnlock          = nil;
 
 static NSObject *   WiFiGracePeriodSyncObj;
 static NSObject *   BTGracePeriodSyncObj;
+static NSObject *   ManuallyDisabledSyncObj;
 
 #define PLIST_PATH      "/var/mobile/Library/Preferences/com.giorgioiavicoli.passby.plist"
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
@@ -214,15 +216,19 @@ static BOOL passcodeChecksOut(NSString * passcode)
 
 static BOOL checkAttemptedUnlock(NSString * passcode)
 {
-    return useMagicPasscode  
-    && truePasscode
-    && !isInSOSMode 
-    && !isManuallyDisabled
-    && !isTemporaryDisabled()
-    && [passcode length] == (isSixDigitPasscode ? 6 : 4)
-    && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
-    && ![truePasscode isEqualToString:passcode]
-    && passcodeChecksOut(passcode);
+
+    @synchronized(ManuallyDisabledSyncObj) {
+        return useMagicPasscode
+        && truePasscode
+        && !isInSOSMode
+        && !isManuallyDisabled
+        && !isDisabledUntilNext
+        && !isTemporaryDisabled()
+        && [passcode length] == (isSixDigitPasscode ? 6 : 4)
+        && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
+        && ![truePasscode isEqualToString:passcode]
+        && passcodeChecksOut(passcode);
+    }
 }
 
 @class SBLockScreenViewControllerBase; //Forward declaration
@@ -624,12 +630,13 @@ static void lockstateChanged(
                     [lastUnlock release];
                     lastUnlock = [NSDate new];
 
+                    isDisabledUntilNext = NO;
+
                     if (isKeptDisabled 
                     && [disableToDate compare:[NSDate date]] == NSOrderedAscending
                     ) {
                         isKeptDisabled = NO;
                     }
-                    isManuallyDisabled = NO;
                 }
 
                 lastLockedState = lockedState;
@@ -792,6 +799,24 @@ static void passByBTListChanged(
     [BTListArr release];
 }
 
+static void flipSwitchOn(
+    CFNotificationCenterRef center, void * observer,
+    CFStringRef name, void const * object, CFDictionaryRef userInfo)
+{
+    @synchronized(ManuallyDisabledSyncObj) {
+        isManuallyDisabled = NO;
+    }
+}
+
+static void flipSwitchOff(
+    CFNotificationCenterRef center, void * observer,
+    CFStringRef name, void const * object, CFDictionaryRef userInfo)
+{
+    @synchronized(ManuallyDisabledSyncObj) {
+        isManuallyDisabled = YES;
+    }
+}
+
 
 static void setDarwinNCObservers()
 {
@@ -810,6 +835,18 @@ static void setDarwinNCObservers()
     CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
                                         passByBTListChanged,
                                         CFSTR("com.giorgioiavicoli.passby/bt"), NULL, 
+                                        CFNotificationSuspensionBehaviorCoalesce
+                                    );
+
+    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
+                                        flipSwitchOn,
+                                        CFSTR("com.giorgioiavicoli.passbyflipswitch/on"), NULL, 
+                                        CFNotificationSuspensionBehaviorCoalesce
+                                    );
+
+    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
+                                        flipSwitchOff,
+                                        CFSTR("com.giorgioiavicoli.passbyflipswitch/off"), NULL, 
                                         CFNotificationSuspensionBehaviorCoalesce
                                     );
 
@@ -866,10 +903,12 @@ static void setUUID()
     isInSOSMode         = NO;
     isKeptDisabled      = NO;
     isManuallyDisabled  = NO;
+    isDisabledUntilNext = NO;
     lastLockedState     = YES;
 
     WiFiGracePeriodSyncObj  = [NSObject new];
     BTGracePeriodSyncObj    = [NSObject new];
+    ManuallyDisabledSyncObj = [NSObject new];
 
     if (savePasscode)
         loadAllGracePeriods();

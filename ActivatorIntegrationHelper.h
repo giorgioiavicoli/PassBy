@@ -18,7 +18,9 @@
     if ([listenerName isEqualToString:@PASSBY_UNLOCK_LALISTENER_NAME]) {
         unlockDevice(YES);
     } else {
-        isManuallyDisabled = YES;
+        @synchronized(ManuallyDisabledSyncObj) {
+            isDisabledUntilNext = YES;
+        }
     }
     
     [event setHandled:YES];

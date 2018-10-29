@@ -241,8 +241,10 @@ static BOOL isTemporaryDisabled()
 
 static BOOL isInGrace()
 {
-    if (isManuallyDisabled || isTemporaryDisabled())
-        return NO;
+    @synchronized(ManuallyDisabledSyncObj) {
+        if (isManuallyDisabled || isDisabledUntilNext || isTemporaryDisabled())
+            return NO;
+    }
 
     if (watchAutoUnlock && isUsingWatch())
         return YES;
