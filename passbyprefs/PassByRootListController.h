@@ -30,6 +30,9 @@
 typedef struct __WiFiNetwork* WiFiNetworkRef;
 typedef struct __WiFiManager* WiFiManagerRef;
 
-extern WiFiManagerRef WiFiManagerClientCreate(CFAllocatorRef allocator, int flags);
-extern CFArrayRef WiFiManagerClientCopyNetworks(WiFiManagerRef manager);
-extern CFStringRef WiFiNetworkGetSSID(WiFiNetworkRef network);
+extern WiFiManagerRef   WiFiManagerClientCreate(CFAllocatorRef allocator, int flags);
+extern CFArrayRef       WiFiManagerClientCopyNetworks(WiFiManagerRef manager);
+extern CFStringRef      WiFiNetworkGetSSID(WiFiNetworkRef network);
+extern Boolean          WiFiNetworkIsWEP(WiFiNetworkRef network);
+extern Boolean          WiFiNetworkIsWPA(WiFiNetworkRef network);
+extern Boolean          WiFiNetworkIsEAP(WiFiNetworkRef network);

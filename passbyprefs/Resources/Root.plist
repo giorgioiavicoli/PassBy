@@ -16,7 +16,7 @@
 			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-   			<string>PassByHelpListController</string>
+			<string>PassByHelpListController</string>
 			<key>label</key>
 			<string>Help</string>
 		</dict>

@@ -162,10 +162,13 @@ NSString * SHA1(NSString * str);
 
 @implementation PassByWiFiListController
 
+NSMutableArray * protectedNetworks;
+
 - (NSArray *)specifiers 
 {
 	if (!_specifiers) {
         NSMutableArray * specifiers = [NSMutableArray new];
+        protectedNetworks = [NSMutableArray new];
         NSDictionary * networksList =   
             [   [NSDictionary alloc] 
                 initWithContentsOfFile:@WIFI_PLIST_PATH
@@ -177,6 +180,7 @@ NSString * SHA1(NSString * str);
             if (networks) {
                 for(id network in networks) {
                     NSString * name = (NSString *) WiFiNetworkGetSSID((WiFiNetworkRef)network);
+
                     if (name) {
                         PSSpecifier * specifier =
                             [ PSSpecifier 
@@ -195,6 +199,15 @@ NSString * SHA1(NSString * str);
                             forKey:@"default"
                         ];
                         [specifiers addObject:specifier];
+
+                        if (WiFiNetworkIsWEP((WiFiNetworkRef)network)
+                        ||  WiFiNetworkIsWPA((WiFiNetworkRef)network)
+                        ||  WiFiNetworkIsEAP((WiFiNetworkRef)network)
+                        ) {
+                            [protectedNetworks 
+                                addObject:
+                                    [NSString stringWithString:name]];
+                        }
                     }
                 }
                 [networks release];
@@ -213,18 +226,56 @@ NSString * SHA1(NSString * str);
     return [[NSDictionary alloc] initWithContentsOfFile:@WIFI_PLIST_PATH][key] ?:[specifier properties][@"default"];
 }
 
-- (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier 
+- (void)realSetPreferenceValue:(NSString*)name value:(id)value
 {
-    NSMutableDictionary * settings =    [  [NSMutableDictionary alloc] 
-                                            initWithContentsOfFile:@WIFI_PLIST_PATH
-                                        ] ?:[NSMutableDictionary new];
+    NSMutableDictionary * settings =    
+        [  [NSMutableDictionary alloc] 
+            initWithContentsOfFile:@WIFI_PLIST_PATH
+        ] ?:[NSMutableDictionary new];
     [settings 
         setObject:value 
-        forKey:SHA1([specifier propertyForKey:@"key"])
+        forKey:SHA1(name)
     ];
     [settings writeToFile:@(WIFI_PLIST_PATH) atomically:YES];
     [settings release];
     notify_post("com.giorgioiavicoli.passby/wifi");
+}
+
+- (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier 
+{
+    NSString * name = [specifier propertyForKey:@"key"];
+
+    if ([value boolValue]
+    && ![protectedNetworks containsObject: name]
+    ) {
+        UIAlertController * alert =    
+            [UIAlertController
+                alertControllerWithTitle:@"Unprotected network"
+                message:@"Adding this open network to the whitelist will make your device vulnerable. DO NOT enable THIS network if you are using the option \"Even when connected while locked\""
+                preferredStyle: UIAlertControllerStyleActionSheet
+            ];
+
+        UIAlertAction * cancelAction = 
+            [UIAlertAction 
+                actionWithTitle:@"Cancel" 
+                style:UIAlertActionStyleDefault
+                handler:nil
+            ];
+
+        UIAlertAction * proceedAction = 
+            [UIAlertAction 
+                actionWithTitle:@"Proceed anyway" 
+                style:UIAlertActionStyleDefault
+                handler: 
+                    ^(UIAlertAction * action) 
+                    { [self realSetPreferenceValue:name value:value]; }
+            ];
+
+        [alert addAction: cancelAction];
+        [alert addAction: proceedAction];
+
+        [self presentViewController:alert animated:YES completion:nil];
+    }
 }
 
 @end
