@@ -64,18 +64,6 @@
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<true/>
-			<key>defaults</key>
-			<string>com.giorgioiavicoli.passby</string>
-			<key>key</key>
-			<string>isSixDigitPasscode</string>
-			<key>label</key>
-			<string>Passcode is 6-digit</string>
-		</dict>
-		<dict>
-			<key>cell</key>
-			<string>PSSwitchCell</string>
-			<key>default</key>
 			<false/>
 			<key>defaults</key>
 			<string>com.giorgioiavicoli.passby</string>
@@ -408,9 +396,29 @@
 		</dict>
 		<dict>
 			<key>cell</key>
+			<string>PSSegmentCell</string>
+			<key>defaults</key>
+			<string>com.giorgioiavicoli.passby</string>
+			<key>key</key>
+			<string>passcodeLength</string>
+			<key>label</key>
+			<string>Passcode length</string>
+			<key>validTitles</key>
+			<array>
+				<string>4</string>
+				<string>6</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>4</integer>
+				<integer>6</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
 			<string>PSLinkCell</string>
 			<key>detail</key>
-   			<string>PassByMagicPasscodeListController</string>
+            <string>PassByMagicPasscodeListController</string>
 			<key>label</key>
 			<string>Magic Passcode configuration</string>
 		</dict>

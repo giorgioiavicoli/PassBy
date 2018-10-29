@@ -8,9 +8,7 @@
 static BOOL isTweakEnabled;
 static BOOL savePasscode;
 static BOOL use24hFormat;
-
-static BOOL isSixDigitPasscode;
-static BOOL useMagicPasscode;
+static BOOL showLastUnlock;
 
 static BOOL useGracePeriod;
 static BOOL useGracePeriodOnWiFi;
@@ -20,7 +18,8 @@ static BOOL allowWiFiGPWhileLocked;
 static BOOL headphonesAutoUnlock;
 static BOOL watchAutoUnlock;
 
-static BOOL showLastUnlock;
+static BOOL useMagicPasscode;
+
 static BOOL dismissLS;
 static BOOL dismissLSWithMedia;
 
@@ -42,6 +41,7 @@ static BOOL lastLockedState;
 static int  gracePeriod;
 static int  gracePeriodOnWiFi;
 static int  gracePeriodOnBT;
+static int  passcodeLength;
 static int  digitsGracePeriod;
 static int  timeShift;
 
@@ -116,8 +116,7 @@ static void unlockedWithPrimary(NSString * passcode)
         ^{
             isInSOSMode = NO;
 
-            if (!truePasscode 
-            || [truePasscode length] != (isSixDigitPasscode ? 6 : 4)
+            if (!truePasscode
             || ![truePasscode isEqualToString:passcode]
             ) {
                 [truePasscode release];
@@ -154,7 +153,7 @@ static void unlockedWithSecondary()
         ^{
             if (first.isGracePeriod
             || second.isGracePeriod
-            || (isSixDigitPasscode && last.isGracePeriod)
+            || (passcodeLength == 6 && last.isGracePeriod)
             ) {
                 unlockedWithTimeout = YES;
                 if (digitsGracePeriod) {
@@ -209,7 +208,7 @@ static BOOL passcodeChecksOut(NSString * passcode)
 {
     return first.eval(&first, [passcode characterAtIndex:0], [passcode characterAtIndex:1])
         && second.eval(&second, [passcode characterAtIndex:2], [passcode characterAtIndex:3])
-        &&  (!isSixDigitPasscode 
+        &&  (passcodeLength == 4
             || last.eval(&last, [passcode characterAtIndex:4], [passcode characterAtIndex:5])
             );
 }
@@ -219,13 +218,13 @@ static BOOL checkAttemptedUnlock(NSString * passcode)
     @synchronized(ManuallyDisabledSyncObj) {
         return useMagicPasscode
         && truePasscode
+        && [truePasscode length]
         && !isInSOSMode
         && !isManuallyDisabled
         && !isDisabledUntilNext
         && !isTemporaryDisabled()
-        && [passcode length] == (isSixDigitPasscode ? 6 : 4)
-        && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
-        && ![truePasscode isEqualToString:passcode]
+        && [passcode length] == passcodeLength
+        && ![passcode isEqualToString:truePasscode]
         && passcodeChecksOut(passcode);
     }
 }
@@ -360,7 +359,7 @@ static void unlockDevice(BOOL finishUIUnlock)
     if (isTweakEnabled) {
         UILabel * label = MSHookIvar<UILabel *>(self, "_statusTitleView");
 
-        if (!truePasscode || [truePasscode length] != (isSixDigitPasscode ? 6 : 4)) {
+        if (!truePasscode || ![truePasscode length]) {
             label.text = @"PassBy requires passcode";
         } else if (showLastUnlock && lastUnlock) {
             NSMutableString * str = [NSMutableString stringWithString:@"Last unlock was at "];
@@ -577,7 +576,7 @@ static void displayStatusChanged(
             ^{
                 if (getState("com.apple.iokit.hid.displayStatus")
                 && truePasscode 
-                && [truePasscode length] == (isSixDigitPasscode ? 6 : 4)
+                && [truePasscode length]
                 && isInGrace()
                 && ([[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
                 ) {
@@ -655,42 +654,42 @@ static void passBySettingsChanged(
             initWithContentsOfFile:@PLIST_PATH
         ]?: [NSDictionary new];
 
-    isTweakEnabled          =   [[passByDict valueForKey:@"isEnabled"]              ?:@NO boolValue];
-    savePasscode            =   [[passByDict valueForKey:@"savePasscode"]           ?:@NO boolValue];
-    isSixDigitPasscode      =   [[passByDict valueForKey:@"isSixDigitPasscode"]     ?:@YES boolValue];
-    showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO boolValue];
-    use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES boolValue];
+    isTweakEnabled          =   [[passByDict valueForKey:@"isEnabled"]              ?:@NO   boolValue];
+    savePasscode            =   [[passByDict valueForKey:@"savePasscode"]           ?:@NO   boolValue];
+    showLastUnlock          =   [[passByDict valueForKey:@"showLastUnlock"]         ?:@NO   boolValue];
+    use24hFormat            =   [[passByDict valueForKey:@"use24hFormat"]           ?:@YES  boolValue];
 
 
-    useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO boolValue];
-    gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0) intValue];
-    gracePeriod            *=   [[passByDict valueForKey:@"gracePeriodUnit"]        ?:@(1) intValue];
+    useGracePeriod          =   [[passByDict valueForKey:@"useGracePeriod"]         ?:@NO   boolValue];
+    gracePeriod             =   [[passByDict valueForKey:@"gracePeriod"]            ?:@(0)  intValue];
+    gracePeriod            *=   [[passByDict valueForKey:@"gracePeriodUnit"]        ?:@(1)  intValue];
 
-    useGracePeriodOnWiFi    =   [[passByDict valueForKey:@"useGracePeriodOnWiFi"]   ?:@NO boolValue];
-    gracePeriodOnWiFi       =   [[passByDict valueForKey:@"gracePeriodOnWiFi"]      ?:@(0) intValue];
-    gracePeriodOnWiFi      *=   [[passByDict valueForKey:@"gracePeriodUnitOnWiFi"]  ?:@(1) intValue];
-    allowWiFiGPWhileLocked  =   [[passByDict valueForKey:@"allowWiFiGPWhileLocked"] ?:@NO boolValue];
+    useGracePeriodOnWiFi    =   [[passByDict valueForKey:@"useGracePeriodOnWiFi"]   ?:@NO   boolValue];
+    gracePeriodOnWiFi       =   [[passByDict valueForKey:@"gracePeriodOnWiFi"]      ?:@(0)  intValue];
+    gracePeriodOnWiFi      *=   [[passByDict valueForKey:@"gracePeriodUnitOnWiFi"]  ?:@(1)  intValue];
+    allowWiFiGPWhileLocked  =   [[passByDict valueForKey:@"allowWiFiGPWhileLocked"] ?:@NO   boolValue];
 
-    useGracePeriodOnBT      =   [[passByDict valueForKey:@"useGracePeriodOnBT"]     ?:@NO boolValue];
-    gracePeriodOnBT         =   [[passByDict valueForKey:@"gracePeriodOnBT"]        ?:@(0) intValue];
-    gracePeriodOnBT        *=   [[passByDict valueForKey:@"gracePeriodUnitOnBT"]    ?:@(1) intValue];
-    allowBTGPWhileLocked    =   [[passByDict valueForKey:@"allowBTGPWhileLocked"]   ?:@NO boolValue];
+    useGracePeriodOnBT      =   [[passByDict valueForKey:@"useGracePeriodOnBT"]     ?:@NO   boolValue];
+    gracePeriodOnBT         =   [[passByDict valueForKey:@"gracePeriodOnBT"]        ?:@(0)  intValue];
+    gracePeriodOnBT        *=   [[passByDict valueForKey:@"gracePeriodUnitOnBT"]    ?:@(1)  intValue];
+    allowBTGPWhileLocked    =   [[passByDict valueForKey:@"allowBTGPWhileLocked"]   ?:@NO   boolValue];
 
 
-    headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO boolValue];
-    watchAutoUnlock         =   [[passByDict valueForKey:@"watchAutoUnlock"]        ?:@NO boolValue];
+    headphonesAutoUnlock    =   [[passByDict valueForKey:@"headphonesAutoUnlock"]   ?:@NO   boolValue];
+    watchAutoUnlock         =   [[passByDict valueForKey:@"watchAutoUnlock"]        ?:@NO   boolValue];
 
-    dismissLS               =   [[passByDict valueForKey:@"dismissLS"]              ?:@NO boolValue];
-    dismissLSWithMedia      =   [[passByDict valueForKey:@"dismissLSWithMedia"]     ?:@NO boolValue];
+    dismissLS               =   [[passByDict valueForKey:@"dismissLS"]              ?:@NO   boolValue];
+    dismissLSWithMedia      =   [[passByDict valueForKey:@"dismissLSWithMedia"]     ?:@NO   boolValue];
 
-    useMagicPasscode        =   [[passByDict valueForKey:@"useMagicPasscode"]       ?:@NO boolValue];
-    timeShift               =   [[passByDict valueForKey:@"timeShift"]              ?:@(0) intValue];
+    useMagicPasscode        =   [[passByDict valueForKey:@"useMagicPasscode"]       ?:@NO   boolValue];
+    passcodeLength          =   [[passByDict valueForKey:@"passcodeLength"]         ?:@(6)  intValue];
+    timeShift               =   [[passByDict valueForKey:@"timeShift"]              ?:@(0)  intValue];
 
-    disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES boolValue];
-    disableDuringTime       =   [[passByDict valueForKey:@"disableDuringTime"]      ?:@NO boolValue];
-    disableBioDuringTime    =   [[passByDict valueForKey:@"disableBioDuringTime"]   ?:@NO boolValue];
-    keepDisabledAfterTime   =   [[passByDict valueForKey:@"keepDisabledAfterTime"]  ?:@NO boolValue];
-    disableAlert            =   [[passByDict valueForKey:@"disableAlert"]           ?:@NO boolValue];
+    disableInSOSMode        =   [[passByDict valueForKey:@"disableInSOSMode"]       ?:@YES  boolValue];
+    disableDuringTime       =   [[passByDict valueForKey:@"disableDuringTime"]      ?:@NO   boolValue];
+    disableBioDuringTime    =   [[passByDict valueForKey:@"disableBioDuringTime"]   ?:@NO   boolValue];
+    keepDisabledAfterTime   =   [[passByDict valueForKey:@"keepDisabledAfterTime"]  ?:@NO   boolValue];
+    disableAlert            =   [[passByDict valueForKey:@"disableAlert"]           ?:@NO   boolValue];
 
     disableDuringTime = 
         disableDuringTime
@@ -702,18 +701,18 @@ static void passBySettingsChanged(
 
     parseDigitsConfiguration(&first,
         [passByDict valueForKey:@"firstTwoCustomDigits"]    ?:@"00",
-        [[passByDict valueForKey:@"firstTwo"]               ?:@(7) intValue],
-        [[passByDict valueForKey:@"firstTwoReversed"]       ?:@NO boolValue]
+        [[passByDict valueForKey:@"firstTwo"]               ?:@(7)  intValue],
+        [[passByDict valueForKey:@"firstTwoReversed"]       ?:@NO   boolValue]
     );
     parseDigitsConfiguration(&second,
         [passByDict valueForKey:@"secondTwoCustomDigits"]   ?:@"00",
-        [[passByDict valueForKey:@"secondTwo"]              ?:@(7) intValue],
-        [[passByDict valueForKey:@"secondTwoReversed"]      ?:@NO boolValue]
+        [[passByDict valueForKey:@"secondTwo"]              ?:@(7)  intValue],
+        [[passByDict valueForKey:@"secondTwoReversed"]      ?:@NO   boolValue]
     );
     parseDigitsConfiguration(&last,
         [passByDict valueForKey:@"lastTwoCustomDigits"]     ?:@"00",
-        [[passByDict valueForKey:@"lastTwo"]                ?:@(7) intValue],
-        [[passByDict valueForKey:@"lastTwoReversed"]        ?:@NO boolValue]
+        [[passByDict valueForKey:@"lastTwo"]                ?:@(7)  intValue],
+        [[passByDict valueForKey:@"lastTwoReversed"]        ?:@NO   boolValue]
     );
 
     if ([[passByDict valueForKey:@"timeShiftDirection"] ?:@"+" characterAtIndex:0] == '-')
@@ -729,7 +728,7 @@ static void passBySettingsChanged(
             ];
     } else if (savePasscode 
     && truePasscode 
-    && [truePasscode length] == (isSixDigitPasscode ? 4 : 6)
+    && [truePasscode length] == passcodeLength
     ) {
         savePasscodeToFile();
     }
