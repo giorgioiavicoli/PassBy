@@ -816,53 +816,15 @@ static void flipSwitchOff(
     }
 }
 
+typedef void (*CFNCCallback) (CFNotificationCenterRef, void *, CFStringRef, void const *, CFDictionaryRef);
 
-static void setDarwinNCObservers()
-{
-    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
-                                        passBySettingsChanged,
-                                        CFSTR("com.giorgioiavicoli.passby/reload"), NULL, 
-                                        CFNotificationSuspensionBehaviorCoalesce
-                                    );
-
-    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
-                                        passByWiFiListChanged,
-                                        CFSTR("com.giorgioiavicoli.passby/wifi"), NULL, 
-                                        CFNotificationSuspensionBehaviorCoalesce
-                                    );
-                                    
-    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
-                                        passByBTListChanged,
-                                        CFSTR("com.giorgioiavicoli.passby/bt"), NULL, 
-                                        CFNotificationSuspensionBehaviorCoalesce
-                                    );
-
-    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
-                                        flipSwitchOn,
-                                        CFSTR("com.giorgioiavicoli.passbyflipswitch/on"), NULL, 
-                                        CFNotificationSuspensionBehaviorCoalesce
-                                    );
-
-    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
-                                        flipSwitchOff,
-                                        CFSTR("com.giorgioiavicoli.passbyflipswitch/off"), NULL, 
-                                        CFNotificationSuspensionBehaviorCoalesce
-                                    );
-
-	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
-	dlopen("/System/Library/PrivateFrameworks/UserNotificationsUIKit.framework/UserNotificationsUIKit", RTLD_LAZY);
-
-    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
-                                        displayStatusChanged, 
-                                        CFSTR("com.apple.iokit.hid.displayStatus"), NULL, 
-                                        0 // Does not delete item from CFNC queue (?)
-                                    );
-
-    CFNotificationCenterAddObserver (   CFNotificationCenterGetDarwinNotifyCenter(), NULL, 
-                                        lockstateChanged, 
-                                        CFSTR("com.apple.springboard.lockstate"), NULL, 
-                                        0
-                                    );
+static void setDarwinNCObserver(CFNCCallback callback, CFStringRef name, BOOL coalesce)
+{ 
+    CFNotificationCenterAddObserver(   
+        CFNotificationCenterGetDarwinNotifyCenter(), 
+        NULL, callback, name, NULL, 
+        coalesce ? CFNotificationSuspensionBehaviorCoalesce : 0
+    );
 }
 
 static void setUUID()
@@ -890,7 +852,18 @@ static void setUUID()
     else
         %init(iOS9);
 
-    setDarwinNCObservers();
+    setDarwinNCObserver(passBySettingsChanged,  CFSTR("com.giorgioiavicoli.passby/reload"),         YES);
+    setDarwinNCObserver(passByWiFiListChanged,  CFSTR("com.giorgioiavicoli.passby/wifi"),           YES);
+    setDarwinNCObserver(passByBTListChanged,    CFSTR("com.giorgioiavicoli.passby/bt"),             YES);
+    setDarwinNCObserver(flipSwitchOn,           CFSTR("com.giorgioiavicoli.passbyflipswitch/on"),   YES);
+    setDarwinNCObserver(flipSwitchOff,          CFSTR("com.giorgioiavicoli.passbyflipswitch/off"),  YES);
+
+	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
+	dlopen("/System/Library/PrivateFrameworks/UserNotificationsUIKit.framework/UserNotificationsUIKit", RTLD_LAZY);
+
+    setDarwinNCObserver(displayStatusChanged,   CFSTR("com.apple.iokit.hid.displayStatus"),         NO);
+    setDarwinNCObserver(lockstateChanged,       CFSTR("com.apple.springboard.lockstate"),           NO);
+
     setUUID();
 
     passBySettingsChanged(NULL, NULL, NULL, NULL, NULL);
