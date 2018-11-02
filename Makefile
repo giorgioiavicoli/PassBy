@@ -5,12 +5,14 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = PassBy
 PassBy_FILES = Tweak.xm
-#PassBy_LIBRARIES = activator
+PassBy_LIBRARIES = activator
 PassBy_FRAMEWORKS = UIKit
 PassBy_PRIVATE_FRAMEWORKS = SpringBoardFoundation BluetoothManager WatchConnectivity
 
-#ADDITIONAL_CFLAGS = -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS12.0.sdk/usr/include/
+#ADDITIONAL_CFLAGS = -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include/
 #-objc-arc
+
+ADDITIONAL_CFLAGS = -std=c++14 -stdlib=libc++
 
 LDFLAGS = -F $(THEOS)/sdks/iPhoneOS11.2.sdk/System/Library/PrivateFrameworks
 

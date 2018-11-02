@@ -822,7 +822,9 @@ static void setDarwinNCObserver(CFNCCallback callback, CFStringRef name, BOOL co
     CFNotificationCenterAddObserver(   
         CFNotificationCenterGetDarwinNotifyCenter(), 
         NULL, callback, name, NULL, 
-        coalesce ? CFNotificationSuspensionBehaviorCoalesce : 0
+        coalesce 
+            ? CFNotificationSuspensionBehaviorCoalesce 
+            : (CFNotificationSuspensionBehavior) 0
     );
 }
 
