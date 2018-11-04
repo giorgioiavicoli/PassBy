@@ -138,7 +138,7 @@
                     ];
                 }
             ];
- 
+
         [alertController addAction:yesAction];
         [alertController addAction:noAction];
         [self 
@@ -152,7 +152,7 @@
 - (void)mailComposeController:(MFMailComposeViewController *)controller
         didFinishWithResult:(MFMailComposeResult)result error:(NSError *)error 
 {
-   [self dismissViewControllerAnimated:YES completion:nil];
+    [self dismissViewControllerAnimated:YES completion:nil];
 }
 
 @end
@@ -245,36 +245,38 @@ NSMutableArray * protectedNetworks;
 {
     NSString * name = [specifier propertyForKey:@"key"];
 
-    if ([value boolValue]
+    if ([value boolValue] 
     && ![protectedNetworks containsObject: name]
     ) {
         UIAlertController * alert =    
             [UIAlertController
                 alertControllerWithTitle:@"Unprotected network"
                 message:@"Adding this open network to the whitelist will make your device vulnerable. DO NOT enable THIS network if you are using the option \"Even when connected while locked\""
-                preferredStyle: UIAlertControllerStyleActionSheet
+                preferredStyle: UIAlertControllerStyleAlert
             ];
 
-        UIAlertAction * cancelAction = 
-            [UIAlertAction 
-                actionWithTitle:@"Cancel" 
-                style:UIAlertActionStyleDefault
-                handler:nil
-            ];
-
-        UIAlertAction * proceedAction = 
+        [alert addAction: 
             [UIAlertAction 
                 actionWithTitle:@"Proceed anyway" 
                 style:UIAlertActionStyleDefault
                 handler: 
                     ^(UIAlertAction * action) 
                     { [self realSetPreferenceValue:name value:value]; }
-            ];
+            ]
+        ];
 
-        [alert addAction: cancelAction];
-        [alert addAction: proceedAction];
+
+        [alert addAction: 
+            [UIAlertAction 
+                actionWithTitle:@"Cancel" 
+                style:UIAlertActionStyleDefault
+                handler:nil
+            ]
+        ];
 
         [self presentViewController:alert animated:YES completion:nil];
+    } else {
+        [self realSetPreferenceValue:name value:value];
     }
 }
 
