@@ -885,7 +885,7 @@ static void setUUID()
 
     if (savePasscode)
         loadAllGracePeriods();
-
+    
     if (dlopen("/usr/lib/libactivator.dylib", RTLD_NOW)) {
         Class LAActivatorClass = objc_getClass("LAActivator");
         if (LAActivatorClass) {

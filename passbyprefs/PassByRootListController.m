@@ -102,7 +102,7 @@
 
         UIAlertController * alertController = 
             [UIAlertController alertControllerWithTitle:@"Attach settings"
-                message:@"Do you want to include settings in feedback? \n This will NOT include names of WiFi nor Bluetooth devices"
+                message:@"Do you want to include your settings in the feedback? \n This will NOT include names of WiFi nor Bluetooth devices"
                 preferredStyle:UIAlertControllerStyleAlert
             ];
         
@@ -252,13 +252,13 @@ NSMutableArray * protectedNetworks;
             [UIAlertController
                 alertControllerWithTitle:@"Unprotected network"
                 message:@"Adding this open network to the whitelist will make your device vulnerable. DO NOT enable THIS network if you are using the option \"Even when connected while locked\""
-                preferredStyle: UIAlertControllerStyleAlert
+                preferredStyle: UIAlertControllerStyleActionSheet
             ];
 
         [alert addAction: 
             [UIAlertAction 
                 actionWithTitle:@"Proceed anyway" 
-                style:UIAlertActionStyleDefault
+                style:UIAlertActionStyleDestructive
                 handler: 
                     ^(UIAlertAction * action) 
                     { [self realSetPreferenceValue:name value:value]; }
@@ -269,8 +269,10 @@ NSMutableArray * protectedNetworks;
         [alert addAction: 
             [UIAlertAction 
                 actionWithTitle:@"Cancel" 
-                style:UIAlertActionStyleDefault
-                handler:nil
+                style:UIAlertActionStyleCancel
+                handler:
+                    ^(UIAlertAction * action) 
+                    { [self reloadSpecifiers]; }
             ]
         ];
 

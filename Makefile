@@ -1,11 +1,14 @@
-THEOS_DEVICE_IP = iPhone.local
+THEOS_DEVICE_IP = iP7.local
 #i5.local
-#iPhone.local
+#iP7.local
+
+FINALVERSION = 1
+
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = PassBy
 PassBy_FILES = Tweak.xm
-PassBy_LIBRARIES = activator
+#PassBy_LIBRARIES = activator **moved to passbyflipswitch
 PassBy_FRAMEWORKS = UIKit
 PassBy_PRIVATE_FRAMEWORKS = SpringBoardFoundation BluetoothManager WatchConnectivity
 
@@ -22,4 +25,5 @@ after-install::
 	install.exec "killall -9 SpringBoard"
 
 SUBPROJECTS += passbyprefs
+SUBPROJECTS += passbyflipswitch
 include $(THEOS_MAKE_PATH)/aggregate.mk

@@ -1,0 +1,10 @@
+Package: com.giorgioiavicoli.passbyflipswitch
+Name: PassByFlipswitch
+Description: A Flipswitch toggle for PassBy
+Version: 1.0
+Priority: optional
+Section: Addons (Flipswitch)
+Architecture: iphoneos-arm
+Depends: mobilesubstrate, com.a3tweaks.flipswitch, com.giorgioiavicoli.passby (>= 1.8)
+Maintainer: Giorgio Iavicoli
+Author: Giorgio Iavicoli
