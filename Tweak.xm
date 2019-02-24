@@ -317,7 +317,7 @@ static void unlockDevice(BOOL finishUIUnlock)
 %end
 %end
 
-%group iOS11
+%group iOS11andAbove
 %hook SBLockScreenManager
 - (BOOL)_attemptUnlockWithPasscode  :(NSString *)passcode
                             mesa    :(BOOL)arg2
@@ -405,32 +405,7 @@ static void unlockDevice(BOOL finishUIUnlock)
 @interface SBWiFiManager : NSObject
 + (id)sharedInstance;
 - (id)currentNetworkName;
-- (int)_linkDidChange;
-- (int)signalStrengthBars;
 @end
-
-%group iOS11Wifi
-%hook SBWiFiManager
-- (void)_linkDidChange
-{
-    %orig;
-    if (allowWiFiGPWhileLocked)
-        updateWiFiGracePeriod();
-}
-%end
-%end
-
-%group iOS12Wifi
-%hook SBWiFiManager
-- (int)signalStrengthBars
-{
-    int const bars = %orig;
-    if (bars && allowWiFiGPWhileLocked)
-        updateWiFiGracePeriod();
-    return bars;
-}
-%end
-%end
 
 static BOOL isUsingWiFi()
 {
@@ -528,7 +503,7 @@ static BOOL isUsingWatch()
 
 
 
-%group iOS11
+%group iOS11andAbove
 @interface NCNotificationCombinedListViewController
 - (BOOL)hasContent;
 @end
@@ -839,7 +814,14 @@ static void flipSwitchOff(
     }
 }
 
+
+typedef struct __WiFiDeviceClient*  WiFiDeviceClientRef;
 typedef void (*CFNCCallback) (CFNotificationCenterRef, void *, CFStringRef, void const *, CFDictionaryRef);
+typedef void (*WiFiDeviceClientLinkOrPowerCallback)(WiFiDeviceClientRef device, const void *object);
+
+static void _WiFiLinkDidChange(WiFiDeviceClientRef, void const *)
+{ if (allowWiFiGPWhileLocked) updateWiFiGracePeriod(); }
+
 
 static void setDarwinNCObserver(CFNCCallback callback, CFStringRef name, BOOL coalesce)
 {
@@ -871,12 +853,7 @@ static void getUUID()
     %init;
 
     if (kCFCoreFoundationVersionNumber >= 1443.00) {
-        if (kCFCoreFoundationVersionNumber > 1500.00) {
-            %init(iOS12Wifi)
-        } else {
-            %init(iOS11Wifi)
-        }
-        %init(iOS11);
+        %init(iOS11andAbove);
     } else if (kCFCoreFoundationVersionNumber >= 1348.00) {
         %init(iOS10);
     } else {
@@ -915,6 +892,17 @@ static void getUUID()
 
     if (savePasscode)
         loadAllGracePeriods();
+
+    void* wifiLibHandle = dlopen("/System/Library/PrivateFrameworks/MobileWiFi.framework/MobileWiFi", RTLD_NOW);
+    if (wifiLibHandle) {
+        void (*WiFiDeviceClientRegisterLinkCallback)(WiFiDeviceClientRef, WiFiDeviceClientLinkOrPowerCallback,const void *);
+        *(void **) (&WiFiDeviceClientRegisterLinkCallback) = dlsym(wifiLibHandle, "WiFiDeviceClientRegisterLinkCallback");
+        
+        (*WiFiDeviceClientRegisterLinkCallback)(
+            MSHookIvar<WiFiDeviceClientRef>([%c(SBWiFiManager) sharedInstance], "_device"), 
+            _WiFiLinkDidChange, nullptr
+        );
+    }
 
     if (dlopen("/usr/lib/libactivator.dylib", RTLD_NOW)) {
         Class LAActivatorClass = objc_getClass("LAActivator");

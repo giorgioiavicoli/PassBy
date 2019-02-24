@@ -209,10 +209,12 @@ NSMutableArray * protectedNetworks;
                                 addObject:
                                     [NSString stringWithString:name]];
                         }
+                        [name release];
                     }
                 }
                 [networks release];
             }
+            CFRelease(manager);
         }
         [networksList release];
         _specifiers = [specifiers retain];
