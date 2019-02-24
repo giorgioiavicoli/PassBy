@@ -3,7 +3,8 @@ THEOS_DEVICE_IP = iPad.local
 #iP7.local
 #iPad.local
 
-FINALVERSION = 1
+FINALPACKAGE = 1
+DEBUG = 0
 
 include $(THEOS)/makefiles/common.mk
 
