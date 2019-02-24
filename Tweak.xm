@@ -403,9 +403,24 @@ static void unlockDevice(BOOL finishUIUnlock)
 
 
 @interface SBWiFiManager : NSObject
++ (id)sharedInstance;
+- (id)currentNetworkName;
+- (int)_linkDidChange;
 - (int)signalStrengthBars;
 @end
 
+%group iOS11Wifi
+%hook SBWiFiManager
+- (void)_linkDidChange
+{
+    %orig;
+    if (allowWiFiGPWhileLocked)
+        updateWiFiGracePeriod();
+}
+%end
+%end
+
+%group iOS12Wifi
 %hook SBWiFiManager
 - (int)signalStrengthBars
 {
@@ -415,32 +430,40 @@ static void unlockDevice(BOOL finishUIUnlock)
     return bars;
 }
 %end
+%end
 
 static BOOL isUsingWiFi()
 {
     if (!useGracePeriodOnWiFi)
         return NO;
 
-    NSDictionary * currentNetwork =
-        (__bridge NSDictionary *)
-        CNCopyCurrentNetworkInfo(CFSTR("en0"));
+    if (kCFCoreFoundationVersionNumber > 1500.00) {
+        SBWiFiManager * SBWFM = [%c(SBWiFiManager) sharedInstance];
+        if (!SBWFM)
+            return NO;
+        
+        NSString * SSID = [SBWFM currentNetworkName];
+        return SSID
+            && [SSID length]
+            && allowedSSIDs
+            && [allowedSSIDs containsObject:SHA1(SSID)];
+    } else {
+        NSDictionary * currentNetwork =
+            (__bridge NSDictionary *)
+            CNCopyCurrentNetworkInfo(CFSTR("en0"));
+        if (!currentNetwork)
+            return NO;
 
-    if (!currentNetwork)
-        return NO;
-
-    NSString * SSID = [currentNetwork objectForKey:@"SSID"];
-
-    BOOL result =
-            SSID
-        && [SSID length]
-        && allowedSSIDs
-        && [allowedSSIDs containsObject:SHA1(SSID)];
-
-    [currentNetwork release];
-
-    return result;
+        NSString * SSID = [currentNetwork objectForKey:@"SSID"];
+        BOOL result =  SSID
+            && [SSID length]
+            && allowedSSIDs
+            && [allowedSSIDs containsObject:SHA1(SSID)];
+        [currentNetwork release];
+        return result;
+    }
 }
-
+    
 
 @interface BluetoothDevice : NSObject
 - (NSString *)name;
@@ -847,12 +870,18 @@ static void getUUID()
 {
     %init;
 
-    if (kCFCoreFoundationVersionNumber >= 1443.00)
+    if (kCFCoreFoundationVersionNumber >= 1443.00) {
+        if (kCFCoreFoundationVersionNumber > 1500.00) {
+            %init(iOS12Wifi)
+        } else {
+            %init(iOS11Wifi)
+        }
         %init(iOS11);
-    else if (kCFCoreFoundationVersionNumber >= 1348.00)
+    } else if (kCFCoreFoundationVersionNumber >= 1348.00) {
         %init(iOS10);
-    else
+    } else {
         %init(iOS9);
+    }
 
     setDarwinNCObserver(passBySettingsChanged,  CFSTR("com.giorgioiavicoli.passby/reload"),         YES);
     setDarwinNCObserver(passByWiFiListChanged,  CFSTR("com.giorgioiavicoli.passby/wifi"),           YES);
