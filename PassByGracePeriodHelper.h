@@ -5,8 +5,8 @@ static void updateGracePeriod()
 {
     [gracePeriodEnds release];
 
-    gracePeriodEnds = 
-        useGracePeriod 
+    gracePeriodEnds =
+        useGracePeriod
             ? (gracePeriod
                 ? [[NSDate dateWithTimeIntervalSinceNow:gracePeriod] retain]
                 : [[NSDate distantFuture] copy]
@@ -17,9 +17,9 @@ static void updateWiFiGracePeriod()
 {
     @synchronized(WiFiGracePeriodSyncObj) {
         [gracePeriodWiFiEnds release];
-        gracePeriodWiFiEnds = 
+        gracePeriodWiFiEnds =
             useGracePeriodOnWiFi && isUsingWiFi()
-                ? (gracePeriodOnWiFi 
+                ? (gracePeriodOnWiFi
                     ? [[NSDate dateWithTimeIntervalSinceNow:gracePeriodOnWiFi] retain]
                     : [[NSDate distantFuture] copy]
                 ) : nil;
@@ -30,7 +30,7 @@ static void updateBTGracePeriod()
 {
     @synchronized(BTGracePeriodSyncObj) {
         [gracePeriodBTEnds release];
-        gracePeriodBTEnds = 
+        gracePeriodBTEnds =
             useGracePeriodOnBT && isUsingBT()
                 ? (gracePeriodOnBT
                     ? [[NSDate dateWithTimeIntervalSinceNow:gracePeriodOnBT] retain]
@@ -67,8 +67,8 @@ static void invalidateAllGracePeriods()
 
 static void saveAllGracePeriods()
 {
-    NSMutableDictionary * gracePeriods =    
-        [   [NSMutableDictionary alloc] 
+    NSMutableDictionary * gracePeriods =
+        [   [NSMutableDictionary alloc]
             initWithContentsOfFile:@GP_PLIST_PATH
         ] ?:[NSMutableDictionary new];
 
@@ -79,7 +79,7 @@ static void saveAllGracePeriods()
                     dataUsingEncoding:NSUTF8StringEncoding
                 ], UUID
             );
-        [gracePeriods 
+        [gracePeriods
             setObject:GPData
             forKey:@"gp"
         ];
@@ -93,7 +93,7 @@ static void saveAllGracePeriods()
                         dataUsingEncoding:NSUTF8StringEncoding
                     ], UUID
                 );
-            [gracePeriods 
+            [gracePeriods
                 setObject:WiFiGPData
                 forKey:@"gpwifi"
             ];
@@ -108,7 +108,7 @@ static void saveAllGracePeriods()
                         dataUsingEncoding:NSUTF8StringEncoding
                     ], UUID
                 );
-            [gracePeriods 
+            [gracePeriods
                 setObject:BTGPData
                 forKey:@"gpbt"
             ];
@@ -121,21 +121,21 @@ static void saveAllGracePeriods()
 
 static void loadAllGracePeriods()
 {
-    NSDictionary * gracePeriods =    
-        [   [NSDictionary alloc] 
+    NSDictionary * gracePeriods =
+        [   [NSDictionary alloc]
             initWithContentsOfFile:@GP_PLIST_PATH
         ];
-    
+
     if (gracePeriods) {
         NSData * GPData = [gracePeriods valueForKey:@"gp"];
         if (useGracePeriod && GPData) {
             NSString * GPString =
-                [   [NSString alloc] 
+                [   [NSString alloc]
                     initWithData:AES128Decrypt(GPData, UUID)
                     encoding:NSUTF8StringEncoding
                 ];
 
-            gracePeriodEnds = 
+            gracePeriodEnds =
                 [   dateFromStringAndFormat(GPString, @"ddMMyyyyHHmmss")
                     copy
                 ];
@@ -146,13 +146,13 @@ static void loadAllGracePeriods()
         NSData * WiFiGPData = [gracePeriods valueForKey:@"gpwifi"];
         if (useGracePeriod && WiFiGPData) {
             NSString * WiFiGPString =
-                [   [NSString alloc] 
+                [   [NSString alloc]
                     initWithData:AES128Decrypt(WiFiGPData, UUID)
                     encoding:NSUTF8StringEncoding
                 ];
 
             @synchronized(WiFiGracePeriodSyncObj) {
-                gracePeriodEnds = 
+                gracePeriodEnds =
                     [   dateFromStringAndFormat(WiFiGPString, @"ddMMyyyyHHmmss")
                         copy
                     ];
@@ -164,12 +164,12 @@ static void loadAllGracePeriods()
         NSData * BTGPData = [gracePeriods valueForKey:@"gp"];
         if (useGracePeriod && BTGPData) {
             NSString * BTPString =
-                [   [NSString alloc] 
+                [   [NSString alloc]
                     initWithData:AES128Decrypt(BTGPData, UUID)
                     encoding:NSUTF8StringEncoding
                 ];
             @synchronized(BTGracePeriodSyncObj) {
-                gracePeriodEnds = 
+                gracePeriodEnds =
                     [   dateFromStringAndFormat(BTPString, @"ddMMyyyyHHmmss")
                         copy
                     ];
@@ -177,7 +177,7 @@ static void loadAllGracePeriods()
             [BTPString release];
         }
     }
-    
+
     [gracePeriods release];
 
 }
@@ -190,16 +190,16 @@ static void refreshDisabledInterval()
 
     currentDay = [NSDate new];
 
-    disableFromDate = 
-        [   [NSCalendar currentCalendar] 
+    disableFromDate =
+        [   [NSCalendar currentCalendar]
             dateBySettingHour:  disableFromTime.hours
             minute:             disableFromTime.minutes
             second:0
             ofDate:currentDay
             options:NSCalendarMatchFirst
         ];
-    disableToDate = 
-        [   [NSCalendar currentCalendar] 
+    disableToDate =
+        [   [NSCalendar currentCalendar]
             dateBySettingHour:  disableToTime.hours
             minute:             disableToTime.minutes
             second:0
@@ -212,11 +212,11 @@ static BOOL isTemporaryDisabled()
 {
     if (!disableDuringTime)
         return NO;
-    
+
     NSDate * currentDate = [NSDate date];
 
     if (
-    ![  [NSCalendar currentCalendar] 
+    ![  [NSCalendar currentCalendar]
         isDate:currentDate
         inSameDayAsDate:currentDay
     ]) {
@@ -225,7 +225,7 @@ static BOOL isTemporaryDisabled()
 
     if (keepDisabledAfterTime && isKeptDisabled)
         return YES;
-        
+
     if ([disableFromDate compare:disableToDate] == NSOrderedAscending
             ? [disableFromDate compare:currentDate] == NSOrderedAscending
                 && [currentDate compare:disableToDate] == NSOrderedAscending
@@ -249,12 +249,12 @@ static BOOL isInGrace()
     if (watchAutoUnlock && isUsingWatch())
         return YES;
 
-    if (gracePeriodEnds 
+    if (gracePeriodEnds
     && [gracePeriodEnds compare:[NSDate date]] == NSOrderedDescending)
         return YES;
 
     @synchronized(WiFiGracePeriodSyncObj) {
-        if (gracePeriodWiFiEnds 
+        if (gracePeriodWiFiEnds
         && [gracePeriodWiFiEnds compare:[NSDate date]] == NSOrderedDescending
         && isUsingWiFi()
         ) {
@@ -266,8 +266,8 @@ static BOOL isInGrace()
     }
 
     @synchronized(BTGracePeriodSyncObj) {
-        if (gracePeriodBTEnds 
-        && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending 
+        if (gracePeriodBTEnds
+        && [gracePeriodBTEnds compare:[NSDate date]] == NSOrderedDescending
         && isUsingBT()
         ) {
             return YES;

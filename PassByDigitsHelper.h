@@ -7,7 +7,7 @@ NSString * stringFromDateAndFormat(NSDate * date, NSString * format)
     [formatter setLocale:[NSLocale currentLocale]];
     [formatter setTimeStyle:NSDateFormatterShortStyle];
     [formatter setDateFormat:format];
-    
+
     NSString * string = [formatter stringFromDate:date];
     [formatter release];
     return string;
@@ -19,7 +19,7 @@ NSDate * dateFromStringAndFormat(NSString * string, NSString * format)
     [formatter setLocale:[NSLocale currentLocale]];
     [formatter setTimeStyle:NSDateFormatterShortStyle];
     [formatter setDateFormat:format];
-    
+
     NSDate * date = [formatter dateFromString:string];
     [formatter release];
     return date;
@@ -33,13 +33,13 @@ BOOL evalDateTimeHelper(NSString * format, char d0, char d1, BOOL reversed)
         d1 = tmp;
     }
 
-    NSString * dateString = 
+    NSString * dateString =
         stringFromDateAndFormat(
-            [NSDate dateWithTimeIntervalSinceNow:timeShift * 60], 
+            [NSDate dateWithTimeIntervalSinceNow:timeShift * 60],
             format
         );
 
-    return d0 == [dateString characterAtIndex:0] 
+    return d0 == [dateString characterAtIndex:0]
         && d1 == [dateString characterAtIndex:1];
 }
 
@@ -52,7 +52,7 @@ struct Digits {
 
 static BOOL evalCustom(struct Digits * config, char d0, char d1)
 {
-    return config->reversed 
+    return config->reversed
         ? d1 == config->digit0 && d0 == config->digit1
         : d0 == config->digit0 && d1 == config->digit1;
 }
@@ -60,7 +60,7 @@ static BOOL evalCustom(struct Digits * config, char d0, char d1)
 static BOOL evalTimeH(struct Digits * config, char d0, char d1)
 {
     return evalDateTimeHelper(
-        use24hFormat ? @"HH" : @"hh", 
+        use24hFormat ? @"HH" : @"hh",
         d0, d1, config->reversed
     );
 }
@@ -126,7 +126,7 @@ enum DigitConfig : int {
     CONFIG_CUSTOM   = 7
 };
 
-void parseDigitsConfiguration(struct Digits * digits, 
+void parseDigitsConfiguration(struct Digits * digits,
     NSString * custom, int config, BOOL reversed)
 {
     digits->reversed        = reversed;
@@ -191,7 +191,7 @@ BOOL parseTime(struct Time * time, NSString * timeString)
 
     if (h0 >= '0' && h0 <= '2'
     && h1 >= '0' && h1 <= (h0 == 2 ? '3' : '9')
-    && m0 >= '0' && m0 <= '5' 
+    && m0 >= '0' && m0 <= '5'
     && m1 >= '0' && m1 <= '9'
     ) {
         time->hours     = (h0 - '0') * 10 + h1 - '0';

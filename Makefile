@@ -1,8 +1,9 @@
-THEOS_DEVICE_IP = iP7.local
+THEOS_DEVICE_IP = iPad.local
 #i5.local
 #iP7.local
+#iPad.local
 
-FINALVERSION = 1
+#FINALVERSION = 1
 
 include $(THEOS)/makefiles/common.mk
 
@@ -13,9 +14,8 @@ PassBy_FRAMEWORKS = UIKit
 PassBy_PRIVATE_FRAMEWORKS = SpringBoardFoundation BluetoothManager WatchConnectivity
 
 #ADDITIONAL_CFLAGS = -I /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include/
-#-objc-arc
-
-ADDITIONAL_CFLAGS = -std=c++14 -stdlib=libc++
+#ADDITIONAL_OBJCFLAGS =-objc-arc
+#ADDITIONAL_CFLAGS = -std=c++14 -stdlib=libc++
 
 LDFLAGS = -F $(THEOS)/sdks/iPhoneOS11.2.sdk/System/Library/PrivateFrameworks
 

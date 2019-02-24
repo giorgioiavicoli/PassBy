@@ -16,36 +16,36 @@
 
 @implementation PassByFlipswitchSwitch
 
-- (NSString *)titleForSwitchIdentifier:(NSString *)switchIdentifier 
+- (NSString *)titleForSwitchIdentifier:(NSString *)switchIdentifier
 {
 	return @"PassBy Flipswitch";
 }
 
-- (FSSwitchState)stateForSwitchIdentifier:(NSString *)switchIdentifier 
+- (FSSwitchState)stateForSwitchIdentifier:(NSString *)switchIdentifier
 {
 	return
 		[	(	[	[NSUserDefaults standardUserDefaults]
-					objectForKey:@"enabled" 
+					objectForKey:@"enabled"
 					inDomain:@FSPACKAGENAME
-				]?: [NSNumber numberWithBool:YES] 
+				]?: [NSNumber numberWithBool:YES]
 			) boolValue
-		] ? 
-		FSSwitchStateOn 
+		] ?
+		FSSwitchStateOn
 		: FSSwitchStateOff;
 }
 
 - (void)applyState:(FSSwitchState)newState forSwitchIdentifier:(NSString *)switchIdentifier {
 	BOOL state = (newState == FSSwitchStateOn);
-	[	[NSUserDefaults standardUserDefaults] 
-		setObject:[NSNumber numberWithBool:state] 
-		forKey:@"enabled" 
+	[	[NSUserDefaults standardUserDefaults]
+		setObject:[NSNumber numberWithBool:state]
+		forKey:@"enabled"
 		inDomain:@FSPACKAGENAME
 	];
 
 	CFNotificationCenterPostNotification(
-		CFNotificationCenterGetDarwinNotifyCenter(), 
+		CFNotificationCenterGetDarwinNotifyCenter(),
 		(state ? CFSTR(FSTURNONNOTI) : CFSTR(FSTURNOFFNOTI)),
-		NULL, NULL, 
+		NULL, NULL,
 		CFNotificationSuspensionBehaviorCoalesce
 	);
 }

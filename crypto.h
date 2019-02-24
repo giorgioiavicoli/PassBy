@@ -14,10 +14,10 @@ NSString * SHA1(NSString * str)
     if (CC_SHA1([data bytes], [data length], hashBytes)) {
         NSUInteger len  = [hashData length];
         NSMutableString * hash  = [NSMutableString stringWithCapacity:(len * 2)];
-        
+
         for (int i = 0; i < len; ++i)
             [hash appendString:[NSString stringWithFormat:@"%02lx", (unsigned long)hashBytes[i]]];
-        
+
         return [NSString stringWithString:hash];
     }
     return nil;
@@ -31,15 +31,15 @@ NSData * aes(
 {
     uint32_t const data_length  = (uint32_t) [data length];
     uint32_t const out_capacity = (int)(data_length / kCCBlockSizeAES128 + 1) * kCCBlockSizeAES128;
-    
-    NSMutableData * output = 
-        [NSMutableData 
+
+    NSMutableData * output =
+        [NSMutableData
             dataWithLength:out_capacity
         ];
 
     size_t bytes_written;
-    
-    CCCryptorStatus ccStatus = CCCrypt(     
+
+    CCCryptorStatus ccStatus = CCCrypt(
         operation, kCCAlgorithmAES128, options,
         (char const *)  [key bytes], [key length],
         [key bytes], // Initialization Vector (IV)
@@ -48,10 +48,10 @@ NSData * aes(
         out_capacity,
         &bytes_written
     );
-    
+
     if (bytes_written < out_capacity)
         [output setLength:bytes_written];
-    
+
     return ccStatus == kCCSuccess ? output : nil;
 }
 
