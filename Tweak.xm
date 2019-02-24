@@ -403,15 +403,16 @@ static void unlockDevice(BOOL finishUIUnlock)
 
 
 @interface SBWiFiManager : NSObject
-- (void)_linkDidChange;
+- (int)signalStrengthBars;
 @end
 
 %hook SBWiFiManager
-- (void)_linkDidChange
+- (int)signalStrengthBars
 {
-    %orig;
-    if (allowWiFiGPWhileLocked)
+    int const bars = %orig;
+    if (bars && allowWiFiGPWhileLocked)
         updateWiFiGracePeriod();
+    return bars;
 }
 %end
 
