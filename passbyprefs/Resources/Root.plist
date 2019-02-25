@@ -29,6 +29,16 @@
 			<string>Donate (help a student)</string>
 			<key>action</key>
 			<string>donate:</string>
+		</dict>		
+		<dict>
+			<key>icon</key>
+			<string>github.png</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Source Code by Giorgio Iavicoli</string>
+			<key>action</key>
+			<string>sourceCode:</string>
 		</dict>
 		<dict>
 			<key>cell</key>

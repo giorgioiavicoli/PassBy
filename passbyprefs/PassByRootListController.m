@@ -9,6 +9,18 @@
 #define WIFI_PLIST_PATH "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbynets.plist"
 #define BT_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
 
+void openURL(NSURL * url)
+{
+    if ([UIApplication respondsToSelector:@selector(openURL:options:completionHandler:)]) {
+        [   [UIApplication sharedApplication]
+            openURL:url options:@{} completionHandler:nil
+        ];
+    } else {
+        [   [UIApplication sharedApplication] 
+            openURL:url 
+        ];
+    }
+}
 
 @implementation PassByRootListController
 
@@ -70,17 +82,12 @@
 
 -(void)donate:(id)arg1
 {
-    if ([UIApplication respondsToSelector:@selector(openURL:options:completionHandler:)]) {
-        [   [UIApplication sharedApplication]
-            openURL:[NSURL URLWithString:@"https://paypal.me/giorgioiavicoli"]
-            options:@{}
-            completionHandler:nil
-        ];
-    } else {
-        [   [UIApplication sharedApplication]
-            openURL:[NSURL URLWithString:@"https://paypal.me/giorgioiavicoli"]
-        ];
-    }
+    openURL([NSURL URLWithString:@"https://paypal.me/giorgioiavicoli"]);
+}
+
+-(void)sourceCode:(id)arg1
+{
+    openURL([NSURL URLWithString:@"https://github.com/giorgioiavicoli/PassBy"]);
 }
 
 -(void)resetSettings:(id)arg1
