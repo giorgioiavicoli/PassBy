@@ -76,7 +76,7 @@ static NSObject *   ManuallyDisabledSyncObj;
 #define BT_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
 #define GP_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbygp.plist"
 
-#define LOGLINE HBLogDebug(@"*g* logged at %d : %s", __LINE__, __FUNCTION__)
+#define LOGLINE HBLogDebug(@"*g* logged at %@, %d : %s", [[NSDate new] description], __LINE__, __FUNCTION__)
 
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
@@ -438,7 +438,16 @@ static BOOL isUsingWiFi()
         return result;
     }
 }
-    
+
+typedef struct __WiFiDeviceClient*  WiFiDeviceClientRef;
+typedef void (*WiFiLinkCallback_t)          (WiFiDeviceClientRef device, const void *object);
+typedef void (*WiFiRegisterLinkCallback_t)  (WiFiDeviceClientRef, WiFiLinkCallback_t,const void *);
+//ToDo Is this being erroneously called upon respring..?
+//Otherwise why is it no ptreserving the grace period?
+static void _WiFiLinkDidChange(WiFiDeviceClientRef, void const *)
+{ if (allowWiFiGPWhileLocked) updateWiFiGracePeriod(); }
+
+
 
 @interface BluetoothDevice : NSObject
 - (NSString *)name;
@@ -815,13 +824,7 @@ static void flipSwitchOff(
 }
 
 
-typedef struct __WiFiDeviceClient*  WiFiDeviceClientRef;
 typedef void (*CFNCCallback) (CFNotificationCenterRef, void *, CFStringRef, void const *, CFDictionaryRef);
-typedef void (*WiFiDeviceClientLinkOrPowerCallback)(WiFiDeviceClientRef device, const void *object);
-
-static void _WiFiLinkDidChange(WiFiDeviceClientRef, void const *)
-{ if (allowWiFiGPWhileLocked) updateWiFiGracePeriod(); }
-
 
 static void setDarwinNCObserver(CFNCCallback callback, CFStringRef name, BOOL coalesce)
 {
@@ -895,10 +898,10 @@ static void getUUID()
 
     void* wifiLibHandle = dlopen("/System/Library/PrivateFrameworks/MobileWiFi.framework/MobileWiFi", RTLD_NOW);
     if (wifiLibHandle) {
-        void (*WiFiDeviceClientRegisterLinkCallback)(WiFiDeviceClientRef, WiFiDeviceClientLinkOrPowerCallback,const void *);
-        *(void **) (&WiFiDeviceClientRegisterLinkCallback) = dlsym(wifiLibHandle, "WiFiDeviceClientRegisterLinkCallback");
+        WiFiRegisterLinkCallback_t WiFiRegisterLinkCallback_sym;
+        *(void **) (&WiFiRegisterLinkCallback_sym) = dlsym(wifiLibHandle, "WiFiDeviceClientRegisterLinkCallback");
         
-        (*WiFiDeviceClientRegisterLinkCallback)(
+        (*WiFiRegisterLinkCallback_sym)(
             MSHookIvar<WiFiDeviceClientRef>([%c(SBWiFiManager) sharedInstance], "_device"), 
             _WiFiLinkDidChange, nullptr
         );

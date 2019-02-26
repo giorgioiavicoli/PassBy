@@ -127,8 +127,11 @@ static void loadAllGracePeriods()
         ];
 
     if (gracePeriods) {
-        NSData * GPData = [gracePeriods valueForKey:@"gp"];
-        if (useGracePeriod && GPData) {
+        NSData * GPData;
+
+        if (useGracePeriod 
+        && (GPData = [gracePeriods valueForKey:@"gp"])
+        ) {
             NSString * GPString =
                 [   [NSString alloc]
                     initWithData:AES128Decrypt(GPData, UUID)
@@ -143,8 +146,11 @@ static void loadAllGracePeriods()
             [GPString release];
         }
 
-        NSData * WiFiGPData = [gracePeriods valueForKey:@"gpwifi"];
-        if (useGracePeriod && WiFiGPData) {
+        NSData * WiFiGPData;
+
+        if (useGracePeriodOnWiFi 
+        && (WiFiGPData = [gracePeriods valueForKey:@"gpwifi"])
+        ) {
             NSString * WiFiGPString =
                 [   [NSString alloc]
                     initWithData:AES128Decrypt(WiFiGPData, UUID)
@@ -152,7 +158,7 @@ static void loadAllGracePeriods()
                 ];
 
             @synchronized(WiFiGracePeriodSyncObj) {
-                gracePeriodEnds =
+                gracePeriodWiFiEnds =
                     [   dateFromStringAndFormat(WiFiGPString, @"ddMMyyyyHHmmss")
                         copy
                     ];
@@ -161,15 +167,18 @@ static void loadAllGracePeriods()
             [WiFiGPString release];
         }
 
-        NSData * BTGPData = [gracePeriods valueForKey:@"gp"];
-        if (useGracePeriod && BTGPData) {
+        NSData * BTGPData;
+
+        if (useGracePeriodOnBT
+        && (BTGPData = [gracePeriods valueForKey:@"gpbt"])
+        ) {
             NSString * BTPString =
                 [   [NSString alloc]
                     initWithData:AES128Decrypt(BTGPData, UUID)
                     encoding:NSUTF8StringEncoding
                 ];
             @synchronized(BTGracePeriodSyncObj) {
-                gracePeriodEnds =
+                gracePeriodBTEnds =
                     [   dateFromStringAndFormat(BTPString, @"ddMMyyyyHHmmss")
                         copy
                     ];
