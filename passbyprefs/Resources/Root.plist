@@ -18,7 +18,7 @@
 			<key>detail</key>
 			<string>PassByHelpListController</string>
 			<key>label</key>
-			<string>Help</string>
+			<string>Guide</string>
 		</dict>
 		<dict>
 			<key>icon</key>
@@ -26,7 +26,7 @@
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
-			<string>Donate (help a student)</string>
+			<string>Donate (support a student)</string>
 			<key>action</key>
 			<string>donate:</string>
 		</dict>		
