@@ -1,7 +1,4 @@
 THEOS_DEVICE_IP = iPad.local
-#i5.local
-#iP7.local
-#iPad.local
 
 FINALPACKAGE = 1
 DEBUG = 0
