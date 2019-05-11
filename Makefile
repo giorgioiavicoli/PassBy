@@ -1,9 +1,11 @@
-THEOS_DEVICE_IP = iPad.local
+THEOS_DEVICE_IP = iP7.local
 
 FINALPACKAGE = 1
 DEBUG = 0
 
 include $(THEOS)/makefiles/common.mk
+
+export ARCHS = armv7 arm64 arm64e
 
 TWEAK_NAME = PassBy
 PassBy_FILES = Tweak.xm
