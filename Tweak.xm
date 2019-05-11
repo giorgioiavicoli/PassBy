@@ -76,7 +76,7 @@ static NSObject *   ManuallyDisabledSyncObj;
 #define BT_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
 #define GP_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbygp.plist"
 
-#define LOGLINE HBLogDebug(@"*g* logged at %@, %d : %s", [[NSDate new] description], __LINE__, __FUNCTION__)
+#define LOGLINE HBLogDebug(@"*g* logged line at %d : %s", __LINE__, __FUNCTION__)
 
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
@@ -900,11 +900,15 @@ static void getUUID()
     if (wifiLibHandle) {
         WiFiRegisterLinkCallback_t WiFiRegisterLinkCallback_sym;
         *(void **) (&WiFiRegisterLinkCallback_sym) = dlsym(wifiLibHandle, "WiFiDeviceClientRegisterLinkCallback");
-        
-        (*WiFiRegisterLinkCallback_sym)(
-            MSHookIvar<WiFiDeviceClientRef>([%c(SBWiFiManager) sharedInstance], "_device"), 
-            _WiFiLinkDidChange, nullptr
-        );
+        if(WiFiRegisterLinkCallback_sym) {
+            WiFiDeviceClientRef _device = 
+                MSHookIvar<WiFiDeviceClientRef>(
+                    [%c(SBWiFiManager) sharedInstance], "_device"
+                );
+            if (_device) {
+                (*WiFiRegisterLinkCallback_sym)(_device, _WiFiLinkDidChange, nullptr);
+            }
+        }
     }
 
     if (dlopen("/usr/lib/libactivator.dylib", RTLD_NOW)) {
