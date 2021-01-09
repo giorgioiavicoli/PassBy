@@ -152,7 +152,8 @@ void openURL(NSURL * url)
 
         UIAlertController * alertController =
             [UIAlertController alertControllerWithTitle:@"Attach settings"
-                message:@"Do you want to include your settings in the feedback? \n This will NOT include names of WiFi nor Bluetooth devices"
+                message:@"Do you want to include your settings in the feedback?"
+                "\nThis will NOT include names of WiFi or Bluetooth devices"
                 preferredStyle:UIAlertControllerStyleAlert
             ];
 
