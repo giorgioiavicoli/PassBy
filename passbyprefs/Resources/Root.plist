@@ -26,7 +26,7 @@
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
-			<string>Donate (support a student)</string>
+			<string>Donate</string>
 			<key>action</key>
 			<string>donate:</string>
 		</dict>		
@@ -68,7 +68,7 @@
 			<key>key</key>
 			<string>savePasscode</string>
 			<key>label</key>
-			<string>Do not require passcode after respring</string>
+			<string>Save passcode across resprings</string>
 		</dict>
 		<dict>
 			<key>cell</key>

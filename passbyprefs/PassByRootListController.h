@@ -36,3 +36,4 @@ extern CFStringRef      WiFiNetworkGetSSID(WiFiNetworkRef network);
 extern Boolean          WiFiNetworkIsWEP(WiFiNetworkRef network);
 extern Boolean          WiFiNetworkIsWPA(WiFiNetworkRef network);
 extern Boolean          WiFiNetworkIsEAP(WiFiNetworkRef network);
+extern Boolean          WiFiNetworkIsHidden(WiFiNetworkRef network);

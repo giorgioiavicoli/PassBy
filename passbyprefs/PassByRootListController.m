@@ -43,6 +43,13 @@ void openURL(NSURL * url)
             ) ?:[specifier properties][@"default"];
 }
 
+- (void)savePreferencesDict:(NSDictionary*)settings
+{
+    [settings writeToFile:@(PLIST_PATH) atomically:YES];
+    notify_post("com.giorgioiavicoli.passby/reload");
+    [self reloadSpecifiers];
+}
+
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier
 {
     NSMutableDictionary * settings =
@@ -56,7 +63,12 @@ void openURL(NSURL * url)
     && [value boolValue] == NO
     ) {
         [settings removeObjectForKey:@"passcode"];
-    } else
+        [settings setObject:value forKey:key];
+        [self savePreferencesDict:settings];
+        [settings release];
+        return;
+    }
+    
     if ([key isEqualToString:@"disableFromTime"]
     || [key isEqualToString:@"disableToTime"]
     ) {
@@ -70,13 +82,43 @@ void openURL(NSURL * url)
                 [value insertString:@":" atIndex:len-2];
             }
         }
+        [settings setObject:value forKey:key];
+        [self savePreferencesDict:settings];
+        [settings release];
+        return;
     }
-
+    
+    if ([key isEqualToString:@"watchAutoUnlock"]
+    && [value boolValue] == YES
+    ) {
+        UIAlertController* alertController = [UIAlertController
+            alertControllerWithTitle:@"Security risk"
+            message:@"In this version, enabling this will let your phone auto-unlock"
+                " even when the watch itself is locked (but still in proximity)."
+            preferredStyle:UIAlertControllerStyleAlert
+        ];
+        [alertController addAction: [UIAlertAction actionWithTitle:@"Enable"
+            style:UIAlertActionStyleDestructive
+            handler:^(UIAlertAction * action) {
+                [settings setObject:value forKey:key];
+                [self savePreferencesDict:settings];
+            }
+        ]];
+        [alertController addAction: [UIAlertAction actionWithTitle:@"Don't enable"
+            style:UIAlertActionStyleCancel
+            handler:^(UIAlertAction * action) {
+                [self reloadSpecifiers];
+            }
+        ]];
+        [self presentViewController:alertController animated:YES completion:nil];
+        [settings release];
+        return;
+    }
+    
     [settings setObject:value forKey:key];
-    [settings writeToFile:@(PLIST_PATH) atomically:YES];
+    [self savePreferencesDict:settings];
     [settings release];
-	notify_post("com.giorgioiavicoli.passby/reload");
-    [self reloadSpecifiers];
+    return;
 }
 
 
@@ -110,7 +152,8 @@ void openURL(NSURL * url)
 
         UIAlertController * alertController =
             [UIAlertController alertControllerWithTitle:@"Attach settings"
-                message:@"Do you want to include your settings in the feedback? \n This will NOT include names of WiFi nor Bluetooth devices"
+                message:@"Do you want to include your settings in the feedback?"
+                "\nThis will NOT include names of WiFi or Bluetooth devices"
                 preferredStyle:UIAlertControllerStyleAlert
             ];
 
@@ -166,17 +209,22 @@ void openURL(NSURL * url)
 @end
 
 
-NSString * SHA1(NSString * str);
 
 @implementation PassByWiFiListController
 
-NSMutableArray * protectedNetworks;
+NSDictionary * _networksDict;
+
+- (void)dealloc
+{
+    [_networksDict release];
+    [super dealloc];
+}
 
 - (NSArray *)specifiers
 {
 	if (!_specifiers) {
         NSMutableArray * specifiers = [NSMutableArray new];
-        protectedNetworks = [NSMutableArray new];
+        NSMutableDictionary* networksDict = [NSMutableDictionary new];
         NSDictionary * networksList =
             [   [NSDictionary alloc]
                 initWithContentsOfFile:@WIFI_PLIST_PATH
@@ -187,7 +235,7 @@ NSMutableArray * protectedNetworks;
             NSArray * networks = (__bridge NSArray *) WiFiManagerClientCopyNetworks(manager);
             if (networks) {
                 for(id network in networks) {
-                    NSString * name = (NSString *) WiFiNetworkGetSSID((WiFiNetworkRef)network);
+                    NSString* name = [(__bridge NSString*)WiFiNetworkGetSSID((WiFiNetworkRef)network) retain];
 
                     if (name) {
                         PSSpecifier * specifier =
@@ -200,7 +248,7 @@ NSMutableArray * protectedNetworks;
                                 cell:PSSwitchCell
                                 edit: nil
                             ];
-                        [specifier setProperty:[NSString stringWithString:name] forKey:@"key"];
+                        [specifier setProperty:name forKey:@"key"];
                         [specifier setProperty:[[NSNumber alloc] initWithBool:TRUE] forKey:@"enabled"];
                         [specifier
                             setProperty:[[networksList valueForKey:SHA1(name)] copy]?:@(0)
@@ -208,14 +256,17 @@ NSMutableArray * protectedNetworks;
                         ];
                         [specifiers addObject:specifier];
 
-                        if (WiFiNetworkIsWEP((WiFiNetworkRef)network)
-                        ||  WiFiNetworkIsWPA((WiFiNetworkRef)network)
-                        ||  WiFiNetworkIsEAP((WiFiNetworkRef)network)
-                        ) {
-                            [protectedNetworks
-                                addObject:
-                                    [NSString stringWithString:name]];
-                        }
+                        [networksDict
+                            setObject:@{
+                                @"isHidden":@(WiFiNetworkIsHidden((WiFiNetworkRef)network)),
+                                @"isProtected":@(WiFiNetworkIsWEP((WiFiNetworkRef)network)
+                                    ||  WiFiNetworkIsWPA((WiFiNetworkRef)network)
+                                    ||  WiFiNetworkIsEAP((WiFiNetworkRef)network)
+                                )
+                            }
+                            forKey:name
+                        ];
+                        
                         [name release];
                     }
                 }
@@ -224,7 +275,8 @@ NSMutableArray * protectedNetworks;
             CFRelease(manager);
         }
         [networksList release];
-        _specifiers = [specifiers retain];
+        _specifiers = specifiers;
+        _networksDict = networksDict;
     }
 
     return _specifiers;
@@ -254,14 +306,23 @@ NSMutableArray * protectedNetworks;
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier
 {
     NSString * name = [specifier propertyForKey:@"key"];
-
-    if (![value boolValue] || [protectedNetworks containsObject: name] ) {
+    NSDictionary* networkProperties = _networksDict[name];
+    
+    if (![value boolValue] || networkProperties[@"isProtected"]) {
         [self realSetPreferenceValue:name value:value];
     } else {
+        NSString* message = @"Adding this open network to the whitelist will make your device vulnerable."
+            "\nDO NOT enable *this* network if you are using the option \"Even when connected while locked\".";
+        if (networkProperties[@"isHidden"]) {
+            message = [message stringByAppendingString:@"\nThe selected network is also of the \"hidden\" kind."
+                " Please, really do not combine this with the aforementioned option"
+                " unless you know *exactly* what yuo are doing."];
+        }
+        
         UIAlertController * alert =
             [UIAlertController
                 alertControllerWithTitle:@"Unprotected network"
-                message:@"Adding this open network to the whitelist will make your device vulnerable. DO NOT enable THIS network if you are using the option \"Even when connected while locked\""
+                message:[message stringByAppendingString:[networkProperties description]]
                 preferredStyle: UIAlertControllerStyleAlert
             ];
 
@@ -334,7 +395,7 @@ NSMutableArray * protectedNetworks;
         }
 
         [bluetoothList release];
-        _specifiers = [specifiers retain];
+        _specifiers = specifiers;
     }
 
     return _specifiers;

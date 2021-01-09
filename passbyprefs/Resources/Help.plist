@@ -30,9 +30,9 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>label</key>
-			<string>Do not require passcode after respring</string>
+			<string>Save passcode across resprings</string>
 			<key>footerText</key>
-			<string>Saves passcode so that you don't need to enter it once every respring (although it still requires one authentication by either Touch ID/Face ID, real passcode, or magic passcode). Your passcode will always be saved encrypted</string>
+			<string>Saves passcode so that you don't need to enter it once every respring. Your passcode will always be saved encrypted.</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
@@ -132,7 +132,7 @@
 			<key>label</key>
 			<string>Auto-unlock while Watch is reachable</string>
 			<key>footerText</key>
-			<string>Bypasses the passcode lock when the paired Apple Watch is nearby</string>
+			<string>Bypasses the passcode lock when the paired Apple Watch is nearby. Note: this does not currently check whether the Watch is unlocked.</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>

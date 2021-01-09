@@ -112,7 +112,7 @@ static BOOL evalGraceP(struct Digits * config, char d0, char d1)
         d1 = tmp;
     }
     digitsGracePeriod = (d0 - '0') * 60 + (d1 - '0') * 10;
-    return TRUE;
+    return YES;
 }
 
 enum DigitConfig : int {
