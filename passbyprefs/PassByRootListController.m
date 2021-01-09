@@ -208,17 +208,22 @@ void openURL(NSURL * url)
 @end
 
 
-NSString * SHA1(NSString * str);
 
 @implementation PassByWiFiListController
 
-NSMutableArray * protectedNetworks;
+NSDictionary * _networksDict;
+
+- (void)dealloc
+{
+    [_networksDict release];
+    [super dealloc];
+}
 
 - (NSArray *)specifiers
 {
 	if (!_specifiers) {
         NSMutableArray * specifiers = [NSMutableArray new];
-        protectedNetworks = [NSMutableArray new];
+        NSMutableDictionary* networksDict = [NSMutableDictionary new];
         NSDictionary * networksList =
             [   [NSDictionary alloc]
                 initWithContentsOfFile:@WIFI_PLIST_PATH
@@ -229,7 +234,7 @@ NSMutableArray * protectedNetworks;
             NSArray * networks = (__bridge NSArray *) WiFiManagerClientCopyNetworks(manager);
             if (networks) {
                 for(id network in networks) {
-                    NSString * name = (NSString *) WiFiNetworkGetSSID((WiFiNetworkRef)network);
+                    NSString* name = [(__bridge NSString*)WiFiNetworkGetSSID((WiFiNetworkRef)network) retain];
 
                     if (name) {
                         PSSpecifier * specifier =
@@ -242,7 +247,7 @@ NSMutableArray * protectedNetworks;
                                 cell:PSSwitchCell
                                 edit: nil
                             ];
-                        [specifier setProperty:[NSString stringWithString:name] forKey:@"key"];
+                        [specifier setProperty:name forKey:@"key"];
                         [specifier setProperty:[[NSNumber alloc] initWithBool:TRUE] forKey:@"enabled"];
                         [specifier
                             setProperty:[[networksList valueForKey:SHA1(name)] copy]?:@(0)
@@ -250,14 +255,17 @@ NSMutableArray * protectedNetworks;
                         ];
                         [specifiers addObject:specifier];
 
-                        if (WiFiNetworkIsWEP((WiFiNetworkRef)network)
-                        ||  WiFiNetworkIsWPA((WiFiNetworkRef)network)
-                        ||  WiFiNetworkIsEAP((WiFiNetworkRef)network)
-                        ) {
-                            [protectedNetworks
-                                addObject:
-                                    [NSString stringWithString:name]];
-                        }
+                        [networksDict
+                            setObject:@{
+                                @"isHidden":@(WiFiNetworkIsHidden((WiFiNetworkRef)network)),
+                                @"isProtected":@(WiFiNetworkIsWEP((WiFiNetworkRef)network)
+                                    ||  WiFiNetworkIsWPA((WiFiNetworkRef)network)
+                                    ||  WiFiNetworkIsEAP((WiFiNetworkRef)network)
+                                )
+                            }
+                            forKey:name
+                        ];
+                        
                         [name release];
                     }
                 }
@@ -266,7 +274,8 @@ NSMutableArray * protectedNetworks;
             CFRelease(manager);
         }
         [networksList release];
-        _specifiers = [specifiers retain];
+        _specifiers = specifiers;
+        _networksDict = networksDict;
     }
 
     return _specifiers;
@@ -296,14 +305,23 @@ NSMutableArray * protectedNetworks;
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier
 {
     NSString * name = [specifier propertyForKey:@"key"];
-
-    if (![value boolValue] || [protectedNetworks containsObject: name] ) {
+    NSDictionary* networkProperties = _networksDict[name];
+    
+    if (![value boolValue] || networkProperties[@"isProtected"]) {
         [self realSetPreferenceValue:name value:value];
     } else {
+        NSString* message = @"Adding this open network to the whitelist will make your device vulnerable."
+            "\nDO NOT enable *this* network if you are using the option \"Even when connected while locked\".";
+        if (networkProperties[@"isHidden"]) {
+            message = [message stringByAppendingString:@"\nThe selected network is also of the \"hidden\" kind."
+                " Please, really do not combine this with the aforementioned option"
+                " unless you know *exactly* what yuo are doing."];
+        }
+        
         UIAlertController * alert =
             [UIAlertController
                 alertControllerWithTitle:@"Unprotected network"
-                message:@"Adding this open network to the whitelist will make your device vulnerable. DO NOT enable THIS network if you are using the option \"Even when connected while locked\""
+                message:[message stringByAppendingString:[networkProperties description]]
                 preferredStyle: UIAlertControllerStyleAlert
             ];
 
@@ -376,7 +394,7 @@ NSMutableArray * protectedNetworks;
         }
 
         [bluetoothList release];
-        _specifiers = [specifiers retain];
+        _specifiers = specifiers;
     }
 
     return _specifiers;
