@@ -170,7 +170,6 @@ static void unlockedWithSecondary()
                 unlockedWithTimeout = YES;
                 if (digitsGracePeriod) {
                     if (kCFCoreFoundationVersionNumber >= 1348.00) {
-                        NSLog(@"*g* digitsGracePeriod: %d", digitsGracePeriod);
                         if (graceTimeoutTimer) {
                             [graceTimeoutTimer invalidate];
                             [graceTimeoutTimer release];
