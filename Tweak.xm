@@ -1,9 +1,13 @@
 #import <Foundation/Foundation.h>
 #import <SystemConfiguration/CaptiveNetwork.h>
+#import <UIKit/UIKit.h>
+
+#import <dlfcn.h>
 #import <notify.h>
 #import <objc/runtime.h>
 
 #include "crypto.h"
+
 
 static BOOL isTweakEnabled;
 static BOOL savePasscode;
@@ -76,9 +80,15 @@ static NSObject *   ManuallyDisabledSyncObj;
 #define BT_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbybt.plist"
 #define GP_PLIST_PATH   "/var/mobile/Library/Preferences/com.giorgioiavicoli.passbygp.plist"
 
-#define LOGLINE HBLogDebug(@"*g* logged line at %d : %s", __LINE__, __FUNCTION__)
+#if DEBUG
+#   define PBLog(...) NSLog(@"*g* %s:%d: %@", __FILE__, __LINE__, [NSString stringWithFormat:__VA_ARGS__])
+#else
+#   define PBLog(...)
+#endif
 
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
+
+static const unsigned long PASSBY_AUTOUNLOCK_DELAY_NSECS = 200 * 1000;
 
 static BOOL isUsingWiFi();
 static BOOL isUsingBT();
@@ -111,45 +121,45 @@ static void savePasscodeToFile()
 
 static void unlockedWithPrimary(NSString * passcode)
 {
-    dispatch_async(
-        dispatch_get_main_queue(),
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
         ^{
             isInSOSMode = NO;
-
-            if (!truePasscode
-            || ![truePasscode isEqualToString:passcode]
-            ) {
+            if (!truePasscode || ![truePasscode isEqualToString:passcode]) {
                 [truePasscode release];
                 truePasscode = [passcode copy];
-                if (savePasscode)
+                if (savePasscode) {
                     savePasscodeToFile();
-
+                }
                 if (!disableAlert) {
-                    UIAlertView *alert =
-                        [   [UIAlertView alloc]
-                            initWithTitle:@"PassBy"
-                            message:@"PassBy enabled!"
-                            delegate:nil
-                            cancelButtonTitle:@"OK"
-                            otherButtonTitles:nil
-                        ];
-                    [alert show];
-                    [alert release];
+                    dispatch_async(dispatch_get_main_queue(),
+                        ^{
+                            UIAlertController* alert = [UIAlertController
+                                alertControllerWithTitle:@"PassBy Enabled"
+                                message:@"PassBy is now enabled"
+                                preferredStyle:UIAlertControllerStyleAlert];
+                            
+                            UIAlertAction* defaultAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+                            handler:^(UIAlertAction * action) {}];
+                            
+                            [alert addAction:defaultAction];
+                            [[[%c(SpringBoard) sharedApplication] keyWindow].rootViewController
+                                presentViewController:alert animated:YES completion:nil];
+                        }
+                    );
                 }
             }
         }
     );
 }
 
-@interface SpringBoard
+@interface SpringBoard : UIApplication
 + (id)  sharedApplication;
 - (void)_simulateLockButtonPress;
 @end
 
 static void unlockedWithSecondary()
 {
-    dispatch_async(
-        dispatch_get_main_queue(),
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
         ^{
             if (first.isGracePeriod
             || second.isGracePeriod
@@ -158,30 +168,44 @@ static void unlockedWithSecondary()
                 unlockedWithTimeout = YES;
                 if (digitsGracePeriod) {
                     if (kCFCoreFoundationVersionNumber >= 1348.00) {
-                        graceTimeoutTimer =
-                            [   [NSTimer
-                                    scheduledTimerWithTimeInterval:digitsGracePeriod
-                                    repeats:NO
-                                    block:^(NSTimer *)
-                                    {
-                                        graceTimeoutTimer = nil;
-                                        [   [%c(SpringBoard) sharedApplication]
-                                            _simulateLockButtonPress
-                                        ];
-                                    }
-                                ] retain
-                            ];
+                        NSLog(@"*g* digitsGracePeriod: %d", digitsGracePeriod);
+                        if (graceTimeoutTimer) {
+                            [graceTimeoutTimer invalidate];
+                            [graceTimeoutTimer release];
+                        }
+                        dispatch_async(dispatch_get_main_queue(),
+                            ^{
+                                graceTimeoutTimer = [
+                                    [NSTimer
+                                        scheduledTimerWithTimeInterval:digitsGracePeriod
+                                        repeats:NO
+                                        block:^(NSTimer *)
+                                        {
+                                            [graceTimeoutTimer invalidate];
+                                            graceTimeoutTimer = nil;
+                                            [[%c(SpringBoard) sharedApplication] _simulateLockButtonPress];
+                                        }
+                                    ] retain
+                                ];
+                            }
+                        );
                     } else {
-                        UIAlertView *alert =
-                            [   [UIAlertView alloc]
-                                initWithTitle:@"PassBy"
-                                message:@"Timeout not supported below iOS 10"
-                                delegate:nil
-                                cancelButtonTitle:@"OK"
-                                otherButtonTitles:nil
-                            ];
-                        [alert show];
-                        [alert release];
+                        // ToDo: move to settigns
+                        dispatch_async(dispatch_get_main_queue(),
+                            ^{
+                                UIAlertController* alert = [UIAlertController
+                                    alertControllerWithTitle:@"PassBy"
+                                    message:@"Timeout not supported below iOS 10"
+                                    preferredStyle:UIAlertControllerStyleAlert];
+                                
+                                UIAlertAction* defaultAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+                                handler:^(UIAlertAction * action) {}];
+                                
+                                [alert addAction:defaultAction];
+                                [[[%c(SpringBoard) sharedApplication] keyWindow].rootViewController
+                                    presentViewController:alert animated:YES completion:nil];
+                            }
+                        );
                     }
                 }
             }
@@ -229,7 +253,8 @@ static BOOL checkAttemptedUnlock(NSString * passcode)
     }
 }
 
-@class SBLockScreenViewControllerBase; //Forward declaration
+//Forward declarations
+@class SBLockScreenViewControllerBase, CSCoverSheetViewController;
 
 @interface SBLockScreenManager : NSObject
 @property(readonly) BOOL isUILocked;
@@ -243,6 +268,7 @@ static BOOL checkAttemptedUnlock(NSString * passcode)
 - (BOOL)_attemptUnlockWithPasscode:(NSString *)passcode mesa:(BOOL)arg2 finishUIUnlock:(BOOL)arg3 completion:(/*^block*/id)arg4 ;
 
 - (SBLockScreenViewControllerBase *) lockScreenViewController;
+- (CSCoverSheetViewController     *) coverSheetViewController;
 @end
 
 static void unlockDevice(BOOL finishUIUnlock)
@@ -557,10 +583,42 @@ static BOOL isUsingWatch()
 - (BOOL)isShowingMediaControls;
 @end
 
-@interface SBAssistantController
-+ (BOOL) isAssistantVisible;
+@interface CSCoverSheetViewController
+- (BOOL)isShowingMediaControls;
 @end
 
+BOOL isLockScreenShowingMediaControls()
+{
+    if (kCFCoreFoundationVersionNumber >= 1665.15) { // iOS >= 13.0
+        return [  [   [%c(SBLockScreenManager)
+                    sharedInstance
+                ] coverSheetViewController
+            ] isShowingMediaControls
+        ];
+    } else {
+        return [  [   [%c(SBLockScreenManager)
+                    sharedInstance
+                ] lockScreenViewController
+            ] isShowingMediaControls
+        ];
+    }
+}
+
+
+@interface SBAssistantController
++ (BOOL) isAssistantVisible;
++ (BOOL) isVisible;
+@end
+
+
+BOOL isSiriVisible()
+{
+    if (kCFCoreFoundationVersionNumber >= 1665.15) { // iOS >= 13.0
+        return [%c(SBAssistantController) isVisible];
+    } else {
+        return [%c(SBAssistantController) isAssistantVisible];
+    }
+}
 
 
 
@@ -579,28 +637,27 @@ static void displayStatusChanged(
     CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
     if (isTweakEnabled && !isInSOSMode) {
-        dispatch_async(
-            dispatch_get_main_queue(),
-            ^{
-                if (getState("com.apple.iokit.hid.displayStatus")
-                && truePasscode
-                && [truePasscode length]
-                && isInGrace()
-                && ([[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
-                ) {
-                    unlockDevice(
-                        dismissLS
-                        && !NCHasContent
-                        && (dismissLSWithMedia
-                            || ![  [   [%c(SBLockScreenManager)
-                                            sharedInstance
-                                        ] lockScreenViewController
-                                    ] isShowingMediaControls
-                                ]
-                            )
-                        && ![%c(SBAssistantController) isAssistantVisible]
-                    );
-                }
+        dispatch_after(
+            dispatch_time(DISPATCH_TIME_NOW, PASSBY_AUTOUNLOCK_DELAY_NSECS),
+            dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0),
+            ^(void){
+                dispatch_async(dispatch_get_main_queue(),
+                    ^{
+                        if (getState("com.apple.iokit.hid.displayStatus")
+                        && truePasscode
+                        && [truePasscode length]
+                        && isInGrace()
+                        && ([[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
+                        ) {
+                            unlockDevice(
+                                dismissLS
+                                && !NCHasContent
+                                && (dismissLSWithMedia || !isLockScreenShowingMediaControls())
+                                && !isSiriVisible()
+                            );
+                        }
+                    }
+                );
             }
         );
     }
@@ -906,7 +963,7 @@ static void getUUID()
                     [%c(SBWiFiManager) sharedInstance], "_device"
                 );
             if (_device) {
-                (*WiFiRegisterLinkCallback_sym)(_device, _WiFiLinkDidChange, nullptr);
+                (*WiFiRegisterLinkCallback_sym)(_device, _WiFiLinkDidChange, NULL);
             }
         }
     }
