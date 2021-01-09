@@ -119,6 +119,12 @@ static void savePasscodeToFile()
     [passByDict release];
 }
 
+
+@interface SpringBoard : UIApplication
++ (id)  sharedApplication;
+- (void)_simulateLockButtonPress;
+@end
+
 static void unlockedWithPrimary(NSString * passcode)
 {
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
@@ -142,7 +148,7 @@ static void unlockedWithPrimary(NSString * passcode)
                             handler:^(UIAlertAction * action) {}];
                             
                             [alert addAction:defaultAction];
-                            [[[%c(SpringBoard) sharedApplication] keyWindow].rootViewController
+                            [[[SpringBoard sharedApplication] keyWindow].rootViewController
                                 presentViewController:alert animated:YES completion:nil];
                         }
                     );
@@ -152,10 +158,6 @@ static void unlockedWithPrimary(NSString * passcode)
     );
 }
 
-@interface SpringBoard : UIApplication
-+ (id)  sharedApplication;
-- (void)_simulateLockButtonPress;
-@end
 
 static void unlockedWithSecondary()
 {
@@ -183,7 +185,7 @@ static void unlockedWithSecondary()
                                         {
                                             [graceTimeoutTimer invalidate];
                                             graceTimeoutTimer = nil;
-                                            [[%c(SpringBoard) sharedApplication] _simulateLockButtonPress];
+                                            [[SpringBoard sharedApplication] _simulateLockButtonPress];
                                         }
                                     ] retain
                                 ];
@@ -202,7 +204,7 @@ static void unlockedWithSecondary()
                                 handler:^(UIAlertAction * action) {}];
                                 
                                 [alert addAction:defaultAction];
-                                [[[%c(SpringBoard) sharedApplication] keyWindow].rootViewController
+                                [[[SpringBoard sharedApplication] keyWindow].rootViewController
                                     presentViewController:alert animated:YES completion:nil];
                             }
                         );
@@ -221,7 +223,7 @@ static void unlockedWithSecondary()
 BOOL isDeviceLocked()
 {
     return
-        [   [%c(SBLockStateAggregator)
+        [   [SBLockStateAggregator
                 sharedInstance
             ] lockState
         ] & LOCKSTATE_NEEDSAUTH_MASK;
@@ -273,7 +275,7 @@ static BOOL checkAttemptedUnlock(NSString * passcode)
 
 static void unlockDevice(BOOL finishUIUnlock)
 {
-    [   [%c(SBLockScreenManager) sharedInstance]
+    [   [SBLockScreenManager sharedInstance]
         _attemptUnlockWithPasscode:truePasscode
         finishUIUnlock: finishUIUnlock
     ];
@@ -325,7 +327,7 @@ static void unlockDevice(BOOL finishUIUnlock)
         ];
 
     if (passcode && [passcode length]) {
-        SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
+        SBLockScreenManager * SBLSManager = [SBLockScreenManager sharedInstance];
 
         if (checkAttemptedUnlock(passcode)
         && [SBLSManager _attemptUnlockWithPasscode:truePasscode finishUIUnlock: YES]
@@ -353,7 +355,7 @@ static void unlockDevice(BOOL finishUIUnlock)
     if (!isTweakEnabled || !passcode)
         return %orig;
 
-    SBLockScreenManager * SBLSManager = [%c(SBLockScreenManager) sharedInstance];
+    SBLockScreenManager * SBLSManager = [SBLockScreenManager sharedInstance];
 
 
     if (checkAttemptedUnlock(passcode)) {
@@ -439,7 +441,7 @@ static BOOL isUsingWiFi()
         return NO;
 
     if (kCFCoreFoundationVersionNumber > 1500.00) {
-        SBWiFiManager * SBWFM = [%c(SBWiFiManager) sharedInstance];
+        SBWiFiManager * SBWFM = [SBWiFiManager sharedInstance];
         if (!SBWFM)
             return NO;
         
@@ -534,7 +536,7 @@ static BOOL isUsingHeadphones()
 
 static BOOL isUsingWatch()
 {
-    BCBatteryDeviceController *batteryDeviceController = [%c(BCBatteryDeviceController) sharedInstance];
+    BCBatteryDeviceController *batteryDeviceController = [BCBatteryDeviceController sharedInstance];
     if (!batteryDeviceController) {
         return false;
     }
@@ -604,13 +606,13 @@ static BOOL isUsingWatch()
 BOOL isLockScreenShowingMediaControls()
 {
     if (kCFCoreFoundationVersionNumber >= 1665.15) { // iOS >= 13.0
-        return [  [   [%c(SBLockScreenManager)
+        return [  [   [SBLockScreenManager
                     sharedInstance
                 ] coverSheetViewController
             ] isShowingMediaControls
         ];
     } else {
-        return [  [   [%c(SBLockScreenManager)
+        return [  [   [SBLockScreenManager
                     sharedInstance
                 ] lockScreenViewController
             ] isShowingMediaControls
@@ -628,9 +630,9 @@ BOOL isLockScreenShowingMediaControls()
 BOOL isSiriVisible()
 {
     if (kCFCoreFoundationVersionNumber >= 1665.15) { // iOS >= 13.0
-        return [%c(SBAssistantController) isVisible];
+        return [SBAssistantController isVisible];
     } else {
-        return [%c(SBAssistantController) isAssistantVisible];
+        return [SBAssistantController isAssistantVisible];
     }
 }
 
@@ -661,7 +663,7 @@ static void displayStatusChanged(
                         && truePasscode
                         && [truePasscode length]
                         && isInGrace()
-                        && ([[%c(SBLockStateAggregator) sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
+                        && ([[SBLockStateAggregator sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
                         ) {
                             unlockDevice(
                                 dismissLS
@@ -974,7 +976,7 @@ static void getUUID()
         if(WiFiRegisterLinkCallback_sym) {
             WiFiDeviceClientRef _device = 
                 MSHookIvar<WiFiDeviceClientRef>(
-                    [%c(SBWiFiManager) sharedInstance], "_device"
+                    [SBWiFiManager sharedInstance], "_device"
                 );
             if (_device) {
                 (*WiFiRegisterLinkCallback_sym)(_device, _WiFiLinkDidChange, NULL);

@@ -21,7 +21,7 @@ TWEAK_NAME = PassBy
 PassBy_FILES = Tweak.xm
 
 PassBy_FRAMEWORKS = UIKit
-PassBy_PRIVATE_FRAMEWORKS = SpringBoardFoundation BluetoothManager BatteryCenter MobileWiFi
+PassBy_PRIVATE_FRAMEWORKS = SpringBoard SpringBoardFoundation BluetoothManager BatteryCenter MobileWiFi
 
 LDFLAGS = -F $(THEOS)/sdks/iPhoneOS13.3.sdk/System/Library/PrivateFrameworks
 
