@@ -26,7 +26,7 @@
 			<key>cell</key>
 			<string>PSButtonCell</string>
 			<key>label</key>
-			<string>Donate (support a student)</string>
+			<string>Donate</string>
 			<key>action</key>
 			<string>donate:</string>
 		</dict>		
