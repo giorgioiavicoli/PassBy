@@ -900,16 +900,11 @@ static void flipSwitchOff(
 }
 
 
-typedef void (*CFNCCallback) (CFNotificationCenterRef, void *, CFStringRef, void const *, CFDictionaryRef);
-
-static void setDarwinNCObserver(CFNCCallback callback, CFStringRef name, BOOL coalesce)
+static void setDarwinNCObserver(CFNotificationCallback callback, CFStringRef name)
 {
     CFNotificationCenterAddObserver(
         CFNotificationCenterGetDarwinNotifyCenter(),
-        NULL, callback, name, NULL,
-        coalesce
-            ? CFNotificationSuspensionBehaviorCoalesce
-            : (CFNotificationSuspensionBehavior) 0
+        NULL, callback, name, NULL, (CFNotificationSuspensionBehavior) NULL
     );
 }
 
@@ -936,17 +931,17 @@ static void getUUID()
         %init(iOS9);
     }
 
-    setDarwinNCObserver(passBySettingsChanged,  CFSTR("com.giorgioiavicoli.passby/reload"),         YES);
-    setDarwinNCObserver(passByWiFiListChanged,  CFSTR("com.giorgioiavicoli.passby/wifi"),           YES);
-    setDarwinNCObserver(passByBTListChanged,    CFSTR("com.giorgioiavicoli.passby/bt"),             YES);
-    setDarwinNCObserver(flipSwitchOn,           CFSTR("com.giorgioiavicoli.passbyflipswitch/on"),   YES);
-    setDarwinNCObserver(flipSwitchOff,          CFSTR("com.giorgioiavicoli.passbyflipswitch/off"),  YES);
+    setDarwinNCObserver(passBySettingsChanged,  CFSTR("com.giorgioiavicoli.passby/reload"));
+    setDarwinNCObserver(passByWiFiListChanged,  CFSTR("com.giorgioiavicoli.passby/wifi"));
+    setDarwinNCObserver(passByBTListChanged,    CFSTR("com.giorgioiavicoli.passby/bt"));
+    setDarwinNCObserver(flipSwitchOn,           CFSTR("com.giorgioiavicoli.passbyflipswitch/on"));
+    setDarwinNCObserver(flipSwitchOff,          CFSTR("com.giorgioiavicoli.passbyflipswitch/off"));
 
 	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
 	dlopen("/System/Library/PrivateFrameworks/UserNotificationsUIKit.framework/UserNotificationsUIKit", RTLD_LAZY);
 
-    setDarwinNCObserver(displayStatusChanged,   CFSTR("com.apple.iokit.hid.displayStatus"),         NO);
-    setDarwinNCObserver(lockstateChanged,       CFSTR("com.apple.springboard.lockstate"),           NO);
+    setDarwinNCObserver(displayStatusChanged,   CFSTR("com.apple.iokit.hid.displayStatus"));
+    setDarwinNCObserver(lockstateChanged,       CFSTR("com.apple.springboard.lockstate"));
 
     getUUID();
 
