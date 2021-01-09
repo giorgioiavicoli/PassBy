@@ -293,8 +293,9 @@ static void unlockDevice(BOOL finishUIUnlock)
 %hook SBLockScreenManager
 - (BOOL)attemptUnlockWithPasscode:(NSString *)passcode
 {
-    if (!isTweakEnabled || !passcode)
+    if (!isTweakEnabled || !passcode) {
         return %orig;
+    }
 
     if (checkAttemptedUnlock(passcode)) {
         if (%orig(truePasscode)) {
@@ -335,8 +336,9 @@ static void unlockDevice(BOOL finishUIUnlock)
             unlockedWithSecondary();
         } else {
             %orig;
-            if (![SBLSManager isUILocked])
+            if (![SBLSManager isUILocked]) {
                 unlockedWithPrimary(passcode);
+            }
         }
     }
 
@@ -352,8 +354,9 @@ static void unlockDevice(BOOL finishUIUnlock)
                     finishUIUnlock  :(BOOL)arg3
                         completion  :(/*^block*/id)arg4
 {
-    if (!isTweakEnabled || !passcode)
+    if (!isTweakEnabled || !passcode) {
         return %orig;
+    }
 
     SBLockScreenManager * SBLSManager = [SBLockScreenManager sharedInstance];
 
@@ -454,8 +457,9 @@ static BOOL isUsingWiFi()
         NSDictionary * currentNetwork =
             (__bridge NSDictionary *)
             CNCopyCurrentNetworkInfo(CFSTR("en0"));
-        if (!currentNetwork)
+        if (!currentNetwork) {
             return NO;
+        }
 
         NSString * SSID = [currentNetwork objectForKey:@"SSID"];
         BOOL result =  SSID
@@ -579,7 +583,6 @@ static BOOL isUsingWatch()
 }
 %end
 %end
-
 
 %group iOS9
 @interface SBLockScreenViewController
@@ -966,8 +969,9 @@ static void getUUID()
     BTGracePeriodSyncObj    = [NSObject new];
     ManuallyDisabledSyncObj = [NSObject new];
 
-    if (savePasscode)
+    if (savePasscode) {
         loadAllGracePeriods();
+    }
 
     void* wifiLibHandle = dlopen("/System/Library/PrivateFrameworks/MobileWiFi.framework/MobileWiFi", RTLD_NOW);
     if (wifiLibHandle) {
