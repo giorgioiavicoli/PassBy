@@ -245,12 +245,12 @@ static BOOL checkAttemptedUnlock(NSString * passcode)
         return useMagicPasscode
         && truePasscode
         && [truePasscode length]
+        && [passcode length] == passcodeLength
+        && ![passcode isEqualToString:truePasscode]
         && !isInSOSMode
         && !isManuallyDisabled
         && !isDisabledUntilNext
         && !isTemporaryDisabled()
-        && [passcode length] == passcodeLength
-        && ![passcode isEqualToString:truePasscode]
         && passcodeChecksOut(passcode);
     }
 }
@@ -360,9 +360,8 @@ static void unlockDevice(BOOL finishUIUnlock)
 
     SBLockScreenManager * SBLSManager = [SBLockScreenManager sharedInstance];
 
-
     if (checkAttemptedUnlock(passcode)) {
-        if (%orig(truePasscode, arg2, arg3, arg4) && [SBLSManager isUILocked]) {
+        if (%orig(truePasscode, arg2, arg3, arg4) && ![SBLSManager isUILocked]) {
             unlockedWithSecondary();
             return YES;
         }
@@ -458,6 +457,7 @@ static BOOL isUsingWiFi()
             (__bridge NSDictionary *)
             CNCopyCurrentNetworkInfo(CFSTR("en0"));
         if (!currentNetwork) {
+            [currentNetwork release];
             return NO;
         }
 
@@ -687,8 +687,7 @@ static void lockstateChanged(
     CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
     if (isTweakEnabled)
-        dispatch_async(
-            dispatch_get_main_queue(),
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
             ^{
                 BOOL lockedState = isDeviceLocked();
 
@@ -696,6 +695,7 @@ static void lockstateChanged(
                     if (!lastLockedState) {
                         if (graceTimeoutTimer) {
                             [graceTimeoutTimer invalidate];
+                            [graceTimeoutTimer release];
                             graceTimeoutTimer = nil;
                         } else if (unlockedWithTimeout) {
                             invalidateAllGracePeriods();
@@ -919,10 +919,7 @@ static void getUUID()
     [   [[UIDevice currentDevice] identifierForVendor]
         getUUIDBytes:buffer
     ];
-    UUID = [    [NSData alloc]
-                initWithBytes:buffer length:16
-    ];
-    free(buffer);
+    UUID = [NSData dataWithBytesNoCopy:buffer length:16];
 }
 
 #include "ActivatorIntegrationHelper.h"
@@ -991,7 +988,7 @@ static void getUUID()
     if (dlopen("/usr/lib/libactivator.dylib", RTLD_NOW)) {
         Class LAActivatorClass = objc_getClass("LAActivator");
         if (LAActivatorClass) {
-            static PassByListener * passbyActivatorListener = [[PassByListener new] retain];
+            static PassByListener * passbyActivatorListener = [PassByListener new];
             [   [LAActivatorClass sharedInstance]
                 registerListener:passbyActivatorListener
                 forName:@PASSBY_UNLOCK_LALISTENER_NAME
