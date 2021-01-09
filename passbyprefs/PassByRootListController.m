@@ -43,6 +43,13 @@ void openURL(NSURL * url)
             ) ?:[specifier properties][@"default"];
 }
 
+- (void)savePreferencesDict:(NSDictionary*)settings
+{
+    [settings writeToFile:@(PLIST_PATH) atomically:YES];
+    notify_post("com.giorgioiavicoli.passby/reload");
+    [self reloadSpecifiers];
+}
+
 - (void)setPreferenceValue:(id)value specifier:(PSSpecifier*)specifier
 {
     NSMutableDictionary * settings =
@@ -56,7 +63,12 @@ void openURL(NSURL * url)
     && [value boolValue] == NO
     ) {
         [settings removeObjectForKey:@"passcode"];
-    } else
+        [settings setObject:value forKey:key];
+        [self savePreferencesDict:settings];
+        [settings release];
+        return;
+    }
+    
     if ([key isEqualToString:@"disableFromTime"]
     || [key isEqualToString:@"disableToTime"]
     ) {
@@ -70,13 +82,43 @@ void openURL(NSURL * url)
                 [value insertString:@":" atIndex:len-2];
             }
         }
+        [settings setObject:value forKey:key];
+        [self savePreferencesDict:settings];
+        [settings release];
+        return;
     }
-
+    
+    if ([key isEqualToString:@"watchAutoUnlock"]
+    && [value boolValue] == YES
+    ) {
+        UIAlertController* alertController = [UIAlertController
+            alertControllerWithTitle:@"Security risk"
+            message:@"In this version, enabling this will let your phone auto-unlock"
+                " even when the watch itself is locked (but still in proximity)."
+            preferredStyle:UIAlertControllerStyleAlert
+        ];
+        [alertController addAction: [UIAlertAction actionWithTitle:@"Enable"
+            style:UIAlertActionStyleDestructive
+            handler:^(UIAlertAction * action) {
+                [settings setObject:value forKey:key];
+                [self savePreferencesDict:settings];
+            }
+        ]];
+        [alertController addAction: [UIAlertAction actionWithTitle:@"Don't enable"
+            style:UIAlertActionStyleCancel
+            handler:^(UIAlertAction * action) {
+                [self reloadSpecifiers];
+            }
+        ]];
+        [self presentViewController:alertController animated:YES completion:nil];
+        [settings release];
+        return;
+    }
+    
     [settings setObject:value forKey:key];
-    [settings writeToFile:@(PLIST_PATH) atomically:YES];
+    [self savePreferencesDict:settings];
     [settings release];
-	notify_post("com.giorgioiavicoli.passby/reload");
-    [self reloadSpecifiers];
+    return;
 }
 
 

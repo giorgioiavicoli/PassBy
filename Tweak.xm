@@ -523,15 +523,29 @@ static BOOL isUsingHeadphones()
 }
 
 
-@interface WCSession
-+ (id)  defaultSession;
-- (BOOL)isReachable;
+@interface BCBatteryDeviceController : NSObject
++ (id)sharedInstance;
+- (NSArray *)connectedDevices;
+@end
+
+@interface BCBatteryDevice : NSObject
+@property(nonatomic) unsigned long long accessoryCategory;
 @end
 
 static BOOL isUsingWatch()
 {
-    WCSession * wcs  = [WCSession defaultSession];
-    return wcs ? [wcs isReachable] : NO;
+    BCBatteryDeviceController *batteryDeviceController = [%c(BCBatteryDeviceController) sharedInstance];
+    if (!batteryDeviceController) {
+        return false;
+    }
+
+    for (BCBatteryDevice *device in [batteryDeviceController connectedDevices]) {
+        if ([device accessoryCategory] == 3) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 

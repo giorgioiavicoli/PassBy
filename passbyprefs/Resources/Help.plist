@@ -132,7 +132,7 @@
 			<key>label</key>
 			<string>Auto-unlock while Watch is reachable</string>
 			<key>footerText</key>
-			<string>Bypasses the passcode lock when the paired Apple Watch is nearby</string>
+			<string>Bypasses the passcode lock when the paired Apple Watch is nearby. Note: this does not currently check whether the Watch is unlocked.</string>
 			<key>footerAlignment</key>
 			<integer>0</integer>
 		</dict>
