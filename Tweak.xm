@@ -494,16 +494,14 @@ static void _WiFiLinkDidChange(WiFiDeviceClientRef, void const *)
 static BOOL isUsingBT()
 {
     if (useGracePeriodOnBT && allowedBTs) {
-        NSArray * connectedDevices =
-            [[BluetoothManager sharedInstance] connectedDevices];
-        if ([connectedDevices count]) {
-            for (BluetoothDevice * bluetoothDevice in connectedDevices) {
-                NSString * deviceName = [bluetoothDevice name];
-                if (deviceName
-                && [deviceName length]
-                && [allowedBTs containsObject:SHA1(deviceName)])
-                    return YES;
-    }   }   }
+        NSArray * connectedDevices = [[BluetoothManager sharedInstance] connectedDevices];
+        for (BluetoothDevice * bluetoothDevice in connectedDevices) {
+            NSString * deviceName = [bluetoothDevice name];
+            if (deviceName && [deviceName length] && [allowedBTs containsObject:SHA1(deviceName)]) {
+                return YES;
+            }
+        }
+    }
     return NO;
 }
 
@@ -657,25 +655,22 @@ static void displayStatusChanged(
     if (isTweakEnabled && !isInSOSMode) {
         dispatch_after(
             dispatch_time(DISPATCH_TIME_NOW, PASSBY_AUTOUNLOCK_DELAY_NSECS),
-            dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_LOW, 0),
-            ^(void){
-                dispatch_async(dispatch_get_main_queue(),
-                    ^{
-                        if (getState("com.apple.iokit.hid.displayStatus")
-                        && truePasscode
-                        && [truePasscode length]
-                        && isInGrace()
-                        && ([[SBLockStateAggregator sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
-                        ) {
-                            unlockDevice(
-                                dismissLS
-                                && !NCHasContent
-                                && (dismissLSWithMedia || !isLockScreenShowingMediaControls())
-                                && !isSiriVisible()
-                            );
-                        }
-                    }
-                );
+            dispatch_get_main_queue(),
+            ^(void)
+            {
+                if (getState("com.apple.iokit.hid.displayStatus")
+                && truePasscode
+                && [truePasscode length]
+                && isInGrace()
+                && ([[SBLockStateAggregator sharedInstance] lockState] & LOCKSTATE_NEEDSAUTH_MASK)
+                ) {
+                    unlockDevice(
+                        dismissLS
+                        && !NCHasContent
+                        && (dismissLSWithMedia || !isLockScreenShowingMediaControls())
+                        && !isSiriVisible()
+                    );
+                }
             }
         );
     }
@@ -685,8 +680,8 @@ static void lockstateChanged(
     CFNotificationCenterRef center, void * observer,
     CFStringRef name, void const * object, CFDictionaryRef userInfo)
 {
-    if (isTweakEnabled)
-        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+    if (isTweakEnabled) {
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_BACKGROUND, 0),
             ^{
                 BOOL lockedState = isDeviceLocked();
 
@@ -723,6 +718,7 @@ static void lockstateChanged(
                 lastLockedState = lockedState;
             }
         );
+    }
 }
 
 
@@ -899,12 +895,9 @@ static void flipSwitchOff(
 }
 
 
-static void setDarwinNCObserver(CFNotificationCallback callback, CFStringRef name)
+static void setDarwinNCObserver(CFNotificationCenterRef notification_center, CFNotificationCallback callback, CFStringRef name)
 {
-    CFNotificationCenterAddObserver(
-        CFNotificationCenterGetDarwinNotifyCenter(),
-        NULL, callback, name, NULL, (CFNotificationSuspensionBehavior) NULL
-    );
+    CFNotificationCenterAddObserver(notification_center, NULL, callback, name, NULL, (CFNotificationSuspensionBehavior) NULL);
 }
 
 static void getUUID()
@@ -929,19 +922,22 @@ static void getUUID()
     } else {
         %init(iOS9);
     }
+    
+    {   // Set event-listener callbacks
+        CFNotificationCenterRef notification_center = CFNotificationCenterGetDarwinNotifyCenter();
+        setDarwinNCObserver(notification_center, passBySettingsChanged,  CFSTR("com.giorgioiavicoli.passby/reload"));
+        setDarwinNCObserver(notification_center, passByWiFiListChanged,  CFSTR("com.giorgioiavicoli.passby/wifi"));
+        setDarwinNCObserver(notification_center, passByBTListChanged,    CFSTR("com.giorgioiavicoli.passby/bt"));
+        setDarwinNCObserver(notification_center, flipSwitchOn,           CFSTR("com.giorgioiavicoli.passbyflipswitch/on"));
+        setDarwinNCObserver(notification_center, flipSwitchOff,          CFSTR("com.giorgioiavicoli.passbyflipswitch/off"));
 
-    setDarwinNCObserver(passBySettingsChanged,  CFSTR("com.giorgioiavicoli.passby/reload"));
-    setDarwinNCObserver(passByWiFiListChanged,  CFSTR("com.giorgioiavicoli.passby/wifi"));
-    setDarwinNCObserver(passByBTListChanged,    CFSTR("com.giorgioiavicoli.passby/bt"));
-    setDarwinNCObserver(flipSwitchOn,           CFSTR("com.giorgioiavicoli.passbyflipswitch/on"));
-    setDarwinNCObserver(flipSwitchOff,          CFSTR("com.giorgioiavicoli.passbyflipswitch/off"));
+        dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
+        dlopen("/System/Library/PrivateFrameworks/UserNotificationsUIKit.framework/UserNotificationsUIKit", RTLD_LAZY);
 
-	dlopen("/System/Library/PrivateFrameworks/SpringBoardUIServices.framework/SpringBoardUIServices", RTLD_LAZY);
-	dlopen("/System/Library/PrivateFrameworks/UserNotificationsUIKit.framework/UserNotificationsUIKit", RTLD_LAZY);
-
-    setDarwinNCObserver(displayStatusChanged,   CFSTR("com.apple.iokit.hid.displayStatus"));
-    setDarwinNCObserver(lockstateChanged,       CFSTR("com.apple.springboard.lockstate"));
-
+        setDarwinNCObserver(notification_center, displayStatusChanged,   CFSTR("com.apple.iokit.hid.displayStatus"));
+        setDarwinNCObserver(notification_center, lockstateChanged,       CFSTR("com.apple.springboard.lockstate"));
+    }
+    
     getUUID();
 
     passBySettingsChanged(NULL, NULL, NULL, NULL, NULL);

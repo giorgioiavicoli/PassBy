@@ -7,8 +7,6 @@ PassByPrefs_INSTALL_PATH = /Library/PreferenceBundles
 PassByPrefs_FRAMEWORKS = UIKit Message
 PassByPrefs_PRIVATE_FRAMEWORKS = Preferences MobileWiFi BluetoothManager
 
-LDFLAGS = -F $(THEOS)/sdks/iPhoneOS13.3.sdk/System/Library/PrivateFrameworks
-
 include $(THEOS_MAKE_PATH)/bundle.mk
 
 

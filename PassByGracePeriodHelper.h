@@ -222,8 +222,10 @@ static BOOL isTemporaryDisabled()
     if (!disableDuringTime)
         return NO;
 
-    NSDate * currentDate = [NSDate date];
+    if (keepDisabledAfterTime && isKeptDisabled)
+        return YES;
 
+    NSDate * currentDate = [NSDate date];
     if (
     ![  [NSCalendar currentCalendar]
         isDate:currentDate
@@ -231,9 +233,6 @@ static BOOL isTemporaryDisabled()
     ]) {
         refreshDisabledInterval();
     }
-
-    if (keepDisabledAfterTime && isKeptDisabled)
-        return YES;
 
     if ([disableFromDate compare:disableToDate] == NSOrderedAscending
             ? [disableFromDate compare:currentDate] == NSOrderedAscending
@@ -286,8 +285,9 @@ static BOOL isInGrace()
         }
     }
 
-    if (headphonesAutoUnlock)
-        return (wasUsingHeadphones = wasUsingHeadphones && isUsingHeadphones());
+    if (headphonesAutoUnlock) {
+        return (wasUsingHeadphones && isUsingHeadphones());
+    }
 
     return NO;
 }
