@@ -1,4 +1,4 @@
-# PassBy (iOS 9 through 13)
+# PassBy (iOS 9 through 14)
 
 This is a highly customizable iOS Tweak that lets you avoid being asked for passcode when certain conditions are verified.
 
