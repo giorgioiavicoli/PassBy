@@ -88,7 +88,7 @@ static NSObject *   ManuallyDisabledSyncObj;
 
 #define LOCKSTATE_NEEDSAUTH_MASK    0x02
 
-static const unsigned long PASSBY_AUTOUNLOCK_DELAY_NSECS = 200 * 1000;
+static const unsigned long PASSBY_AUTOUNLOCK_DELAY_MILLISECONDS = 10;
 
 static BOOL isUsingWiFi();
 static BOOL isUsingBT();
@@ -422,6 +422,7 @@ static void unlockDevice(BOOL finishUIUnlock)
 %hook SBLockScreenBiometricAuthenticationCoordinator
 - (BOOL)isUnlockingDisabled
 {
+    // if (!truePasscode || ![truePassocde length]) return true;  // Disallow biometrics when truePasscode is absent
     return isTweakEnabled && disableBioDuringTime
         ? (isTemporaryDisabled() || %orig)
         : %orig;
@@ -626,7 +627,6 @@ BOOL isLockScreenShowingMediaControls()
 + (BOOL) isVisible;
 @end
 
-
 BOOL isSiriVisible()
 {
     if (kCFCoreFoundationVersionNumber >= 1665.15) { // iOS >= 13.0
@@ -654,7 +654,7 @@ static void displayStatusChanged(
 {
     if (isTweakEnabled && !isInSOSMode) {
         dispatch_after(
-            dispatch_time(DISPATCH_TIME_NOW, PASSBY_AUTOUNLOCK_DELAY_NSECS),
+            dispatch_time(DISPATCH_TIME_NOW, PASSBY_AUTOUNLOCK_DELAY_MILLISECONDS * 1000 * 1000),
             dispatch_get_main_queue(),
             ^(void)
             {
@@ -719,6 +719,7 @@ static void lockstateChanged(
             }
         );
     }
+    PBLog(@"*g* done setting lockedState: ", lastLockedState);
 }
 
 
@@ -906,7 +907,8 @@ static void getUUID()
     [   [[UIDevice currentDevice] identifierForVendor]
         getUUIDBytes:buffer
     ];
-    UUID = [NSData dataWithBytesNoCopy:buffer length:16];
+    UUID = [[NSData alloc] initWithBytes:buffer length:16];
+    free(buffer);
 }
 
 #include "ActivatorIntegrationHelper.h"
